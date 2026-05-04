@@ -1,0 +1,10 @@
+{
+  "name": "figurin",
+  "version": "1.0.0",
+  "description": "Jump to survive",
+  "author": "Ramón Helena <ramonhelena@gmail.com>",
+  "scripts": {
+    "dev": "npx serve ."
+  },
+  "dependencies": {}
+}

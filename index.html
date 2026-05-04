@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Figurin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+
+    <div id="ui-layer">
+      <div id="hud" class="hidden">
+        <div id="score-display">0</div>
+        <button id="sound-toggle" title="Toggle Sound">🔊</button>
+      </div>
+
+      <div id="menu-screen">
+        <h1 id="title">FIGURIN</h1>
+        <p id="subtitle">Jump to survive</p>
+        <div id="best-score-display">Best: 0</div>
+        <button id="start-btn">PLAY</button>
+        <button id="instructions-btn">HOW TO PLAY</button>
+      </div>
+
+      <div id="instructions-screen" class="hidden">
+        <h2>HOW TO PLAY</h2>
+        <div class="instructions-content">
+          <p>Tap or press <span class="key">SPACE</span> to jump</p>
+          <p>Avoid the obstacles</p>
+          <p>Speed increases over time</p>
+          <p>Survive as long as you can!</p>
+        </div>
+        <button id="back-btn">BACK</button>
+      </div>
+
+      <div id="gameover-screen" class="hidden">
+        <h2>GAME OVER</h2>
+        <div id="final-score">Score: 0</div>
+        <div id="new-best" class="hidden">NEW BEST!</div>
+        <button id="restart-btn">TRY AGAIN</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
