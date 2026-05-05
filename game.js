@@ -33,6 +33,64 @@ const state = {
   doubleTapBonus: false,
 };
 
+function getScaleFactor() {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const minDim = Math.min(width, height);
+  const maxDim = Math.max(width, height);
+  const isPortrait = height > width;
+  
+  let baseScale = 1;
+  if (maxDim >= 1200) {
+    baseScale = 1.4;
+  } else if (maxDim >= 900) {
+    baseScale = 1.3;
+  } else if (maxDim >= 600) {
+    baseScale = 1.2;
+  } else {
+    baseScale = 1.15;
+  }
+  
+  if (isPortrait) {
+    if (width <= 400) {
+      baseScale = 1.05;
+    } else if (width <= 480) {
+      baseScale = 1.1;
+    }
+  } else {
+    if (baseScale < 1.35) {
+      baseScale = 1.35;
+    }
+  }
+  
+  return baseScale;
+}
+
+const gameScale = { factor: getScaleFactor() };
+
+function getPlayerBaseX() {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const isPortrait = height > width;
+  
+  if (isPortrait) {
+    if (width <= 400) return -1.2;
+    if (width <= 480) return -1.4;
+    return -1.6;
+  } else {
+    if (width <= 480) return -3.5;
+    if (width <= 600) return -3.2;
+    return -3;
+  }
+}
+
+function getObstacleSpawnX() {
+  const width = window.innerWidth;
+  if (width <= 400) return 8;
+  if (width <= 600) return 10;
+  return 12;
+}
+
 // Three.js setup
 const canvas = document.getElementById('game-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -56,7 +114,22 @@ scene.add(playerLight);
 
 // Player (embedded image character)
 const player = new THREE.Group();
-player.position.set(-3, 0.3, 0);
+function getPlayerBaseX() {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const isPortrait = height > width;
+  
+  if (isPortrait) {
+    if (width <= 400) return -2.0;
+    if (width <= 480) return -2.2;
+    return -2.5;
+  } else {
+    if (width <= 480) return -3.5;
+    if (width <= 600) return -3.2;
+    return -3;
+  }
+}
+player.position.set(getPlayerBaseX(), 0.3, 0);
 
 function createPlayerTexture() {
   const canvas = document.createElement('canvas');
@@ -147,7 +220,7 @@ const playerSpriteMat = new THREE.SpriteMaterial({
   color: 0xffffff,
 });
 const playerSprite = new THREE.Sprite(playerSpriteMat);
-playerSprite.scale.set(0.9, 0.9, 0.9);
+playerSprite.scale.set(1.5 * gameScale.factor, 1.5 * gameScale.factor, 1.5 * gameScale.factor);
 playerSprite.position.y = 0.15;
 player.add(playerSprite);
 
@@ -186,6 +259,8 @@ let bellaTexture = null;
 function createDog() {
   const group = new THREE.Group();
   group.userData.type = 'dog';
+  group.userData.collisionHalfW = 0.45;
+  group.userData.collisionHalfH = 0.5;
 
   // Load texture if not loaded yet
   if (!bellaTexture) {
@@ -199,8 +274,8 @@ function createDog() {
     opacity: 1,
   });
   const dogSprite = new THREE.Sprite(dogSpriteMat);
-  // Make it bigger and position properly
-  dogSprite.scale.set(1.2, 1.2, 1.2);
+  const scale = 2.0 * gameScale.factor;
+  dogSprite.scale.set(scale, scale, scale);
   dogSprite.position.y = 0.4;
   group.add(dogSprite);
 
@@ -211,9 +286,11 @@ function createDog() {
 
 function createSpaceship() {
   const group = new THREE.Group();
+  group.userData.collisionHalfW = 0.35;
+  group.userData.collisionHalfH = 0.55;
 
   // Body
-  const bodyGeom = new THREE.ConeGeometry(0.22, 0.7, 8);
+  const bodyGeom = new THREE.ConeGeometry(0.38 * gameScale.factor, 1.1 * gameScale.factor, 8);
   const bodyMat = new THREE.MeshStandardMaterial({
     color: 0x8899aa,
     emissive: 0x4488ff,
@@ -226,7 +303,7 @@ function createSpaceship() {
   group.add(body);
 
   // Wings
-  const wingGeom = new THREE.BoxGeometry(0.65, 0.02, 0.22);
+  const wingGeom = new THREE.BoxGeometry(0.95 * gameScale.factor, 0.03 * gameScale.factor, 0.35 * gameScale.factor);
   const wingMat = new THREE.MeshStandardMaterial({
     color: 0x667788,
     emissive: 0x2244aa,
@@ -239,24 +316,27 @@ function createSpaceship() {
   group.add(wings);
 
   // Engine glow
-  const engineGeom = new THREE.SphereGeometry(0.08, 8, 8);
+  const engineGeom = new THREE.SphereGeometry(0.15 * gameScale.factor, 8, 8);
   const engineMat = new THREE.MeshBasicMaterial({
     color: 0x00aaff,
     transparent: true,
     opacity: 0.9,
   });
   const engine = new THREE.Mesh(engineGeom, engineMat);
-  engine.position.set(0, 0, 0.38);
+  engine.position.set(0, 0, 0.45);
   group.add(engine);
 
+  group.userData.type = 'spaceship';
   return group;
 }
 
 function createTomato() {
   const group = new THREE.Group();
+  group.userData.collisionHalfW = 0.4;
+  group.userData.collisionHalfH = 0.5;
 
   // Body
-  const bodyGeom = new THREE.SphereGeometry(0.34, 12, 12);
+  const bodyGeom = new THREE.SphereGeometry(0.55 * gameScale.factor, 12, 12);
   const bodyMat = new THREE.MeshStandardMaterial({
     color: 0xff3333,
     emissive: 0xff0000,
@@ -268,19 +348,20 @@ function createTomato() {
   group.add(body);
 
   // Stem
-  const stemGeom = new THREE.CylinderGeometry(0.02, 0.03, 0.14, 6);
+  const stemGeom = new THREE.CylinderGeometry(0.025 * gameScale.factor, 0.04 * gameScale.factor, 0.18 * gameScale.factor, 6);
   const stemMat = new THREE.MeshStandardMaterial({ color: 0x228822 });
   const stem = new THREE.Mesh(stemGeom, stemMat);
-  stem.position.y = 0.3;
+  stem.position.y = 0.38 * gameScale.factor;
   group.add(stem);
 
   // Leaf
-  const leafGeom = new THREE.BoxGeometry(0.1, 0.02, 0.05);
+  const leafGeom = new THREE.BoxGeometry(0.13 * gameScale.factor, 0.025 * gameScale.factor, 0.065 * gameScale.factor);
   const leafMat = new THREE.MeshStandardMaterial({ color: 0x33aa33 });
   const leaf = new THREE.Mesh(leafGeom, leafMat);
-  leaf.position.set(0, 0.34, 0);
+  leaf.position.set(0, 0.42 * gameScale.factor, 0);
   group.add(leaf);
 
+  group.userData.type = 'tomato';
   return group;
 }
 
@@ -312,7 +393,7 @@ function createObstacle() {
     obstacle.userData.points = 1; // Easy - 1 point
     obstacle.userData.difficulty = 'easy';
   }
-  obstacle.position.set(12, yPos, 0);
+  obstacle.position.set(getObstacleSpawnX(), yPos, 0);
   scene.add(obstacle);
   obstacles.push(obstacle);
 }
@@ -935,16 +1016,21 @@ function showScreen(screenName) {
 }
 
 // Collision detection
+function getPlayerScale() {
+  return 1.5 * gameScale.factor;
+}
+
 function checkCollision(player, obstacle) {
   const px = player.position.x;
   const py = player.position.y;
   const ox = obstacle.position.x;
   const oy = obstacle.position.y;
-
-  const playerHalfW = 0.25;
-  const playerHalfH = 0.25;
-  const obsHalfW = 0.15;
-  const obsHalfH = 0.35;
+  
+  const playerScale = getPlayerScale();
+  const playerHalfW = 0.25 * playerScale;
+  const playerHalfH = 0.25 * playerScale;
+  const obsHalfW = obstacle.userData.collisionHalfW || 0.15;
+  const obsHalfH = obstacle.userData.collisionHalfH || 0.35;
 
   return Math.abs(px - ox) < (playerHalfW + obsHalfW) &&
          Math.abs(py - oy) < (playerHalfH + obsHalfH);
@@ -992,9 +1078,21 @@ document.getElementById('sound-toggle').addEventListener('click', () => {
 
 // Resize handler
 window.addEventListener('resize', () => {
+  gameScale.factor = getScaleFactor();
+  player.position.x = getPlayerBaseX();
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    gameScale.factor = getScaleFactor();
+    player.position.x = getPlayerBaseX();
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }, 100);
 });
 
 // Update best score display on load
@@ -1033,7 +1131,6 @@ function animate() {
     state.difficultyTimer++;
 
     // Progressive difficulty curve
-    state.difficultyTimer++;
     
     // Difficulty increases every 10 seconds (600 frames)
     if (state.difficultyTimer % 600 === 0) {

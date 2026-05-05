@@ -310,3 +310,117 @@ button:active {
     min-width: 200px;
   }
 }
+
+/* Portrait mode - very narrow width */
+@media (max-width: 480px) and (orientation: portrait) {
+  #title {
+    font-size: 40px;
+    letter-spacing: 4px;
+    margin-bottom: 8px;
+  }
+
+  #subtitle {
+    font-size: 14px;
+    letter-spacing: 3px;
+  }
+
+  #best-score-display {
+    font-size: 14px;
+  }
+
+  #score-display {
+    font-size: 28px;
+  }
+
+  button {
+    padding: 10px 24px;
+    font-size: 14px;
+    min-width: 180px;
+  }
+
+  #instructions-screen,
+  #gameover-screen {
+    padding: 24px;
+    max-width: 320px;
+  }
+
+  #instructions-screen h2 {
+    font-size: 22px;
+  }
+
+  #gameover-screen h2 {
+    font-size: 26px;
+    letter-spacing: 4px;
+  }
+
+  #final-score {
+    font-size: 32px;
+  }
+
+  #new-best {
+    font-size: 16px;
+  }
+}
+
+/* Very small screens - 360px width */
+@media (max-width: 380px) {
+  #title {
+    font-size: 32px;
+    letter-spacing: 2px;
+  }
+
+  #subtitle {
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+
+  #best-score-display {
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+
+  #score-display {
+    font-size: 24px;
+  }
+
+  #sound-toggle {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  button {
+    padding: 8px 20px;
+    font-size: 12px;
+    min-width: 160px;
+  }
+
+  #instructions-screen,
+  #gameover-screen {
+    padding: 20px;
+    max-width: 280px;
+  }
+
+  #instructions-screen h2 {
+    font-size: 18px;
+  }
+
+  #gameover-screen h2 {
+    font-size: 22px;
+    letter-spacing: 2px;
+  }
+
+  #final-score {
+    font-size: 26px;
+  }
+
+  #new-best {
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+
+  .powerup-indicator {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+}
