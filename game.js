@@ -58,8 +58,8 @@ function getScaleFactor() {
       baseScale = 1.1;
     }
   } else {
-    if (baseScale < 1.35) {
-      baseScale = 1.35;
+    if (baseScale < 1.8) {
+      baseScale = 1.8;
     }
   }
   
@@ -74,9 +74,9 @@ function getPlayerBaseX() {
   const isPortrait = height > width;
   
   if (isPortrait) {
-    if (width <= 400) return -1.2;
-    if (width <= 480) return -1.4;
-    return -1.6;
+    if (width <= 400) return -0.8;
+    if (width <= 480) return -1.0;
+    return -1.2;
   } else {
     if (width <= 480) return -3.5;
     if (width <= 600) return -3.2;
@@ -220,7 +220,7 @@ const playerSpriteMat = new THREE.SpriteMaterial({
   color: 0xffffff,
 });
 const playerSprite = new THREE.Sprite(playerSpriteMat);
-playerSprite.scale.set(1.5 * gameScale.factor, 1.5 * gameScale.factor, 1.5 * gameScale.factor);
+playerSprite.scale.set(1.8 * gameScale.factor, 1.8 * gameScale.factor, 1.8 * gameScale.factor);
 playerSprite.position.y = 0.15;
 player.add(playerSprite);
 
@@ -336,7 +336,7 @@ function createTomato() {
   group.userData.collisionHalfH = 0.5;
 
   // Body
-  const bodyGeom = new THREE.SphereGeometry(0.55 * gameScale.factor, 12, 12);
+  const bodyGeom = new THREE.SphereGeometry(0.5 * gameScale.factor, 12, 12);
   const bodyMat = new THREE.MeshStandardMaterial({
     color: 0xff3333,
     emissive: 0xff0000,
@@ -907,7 +907,8 @@ function jump(isDoubleTap = false) {
     
     // Visual spin effect
     if (player.userData.sprite) {
-      player.userData.sprite.scale.set(1.2, 1.2, 1.2);
+      const spinScale = 1.2 * gameScale.factor;
+      player.userData.sprite.scale.set(spinScale, spinScale, spinScale);
     }
   }
 }
@@ -1017,7 +1018,7 @@ function showScreen(screenName) {
 
 // Collision detection
 function getPlayerScale() {
-  return 1.5 * gameScale.factor;
+  return 1.8 * gameScale.factor;
 }
 
 function checkCollision(player, obstacle) {
@@ -1249,7 +1250,7 @@ function animate() {
         spawnParticles(obs.position.clone(), feedbackColor, 8 + (obs.userData.points * 3));
         
         if (player.userData.sprite) {
-          const scale = 1.2 + (obs.userData.points * 0.1);
+          const scale = (1.2 + (obs.userData.points * 0.1)) * gameScale.factor;
           player.userData.sprite.scale.set(scale, scale, scale);
         }
       }
@@ -1275,7 +1276,8 @@ function animate() {
 
     // Player sprite pulse recovery
     if (player.userData.sprite) {
-      player.userData.sprite.scale.lerp(new THREE.Vector3(0.9, 0.9, 0.9), 0.1);
+      const targetScale = 1.8 * gameScale.factor;
+      player.userData.sprite.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
     }
 
     // Grid movement effect
