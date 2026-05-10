@@ -18,7 +18,7 @@ python3 -m http.server 3000    # starts local server
 - `style.css` — all UI styling (dark neon theme, screen animations)
 - `three-setup.js` — Three.js initialization: scene, camera, renderer, player, ground, stars, responsive helpers (exports via global `var`/`function`)
 - `audio.js` — Web Audio API system: sound effects (jump, score, powerup, death) and background music (chiptune style) (exports via `window.audioExport`)
-- `obstacle.js` — all obstacle factory functions: dog, spaceship, tomato, water puddle, oil puddle, live wire, drone, magnet, toaster, watermelon, water balloon (exports via global `function`)
+- `obstacle.js` — all obstacle factory functions: dog, spaceship, tomato, water puddle, oil puddle, live wire, drone, magnet, toaster, watermelon, water balloon, drill/IBM-360 (exports via global `function`)
 - `game.js` — game loop, state management, input handling, particles, collision detection, powerups
 
 ## File Responsibilities
@@ -30,7 +30,6 @@ Exports via global `var`/`function`:
 - `gameScale` — responsive scale object (`{ factor: <number> }`)
 - `gridHelper`, `ground`, `groundLine` — ground elements
 - `stars` — starfield (100 points)
-- `planets` — 3 floating planets (cyan+ring, purple+moon, blue), animated with gentle rotation + bob
 - `city` — 12-building skyline with emissive windows
 - `clouds` — 5 glowing cloud sprites with additive blending, horizontal drift
 - `ambientLights` — 3 colored orbiting point lights
@@ -53,6 +52,7 @@ Exports via global `function`:
 - `createToaster()` — metallic box with eyes
 - `createWatermelon()` — green striped sphere (rolling)
 - `createWaterBalloon()` — falling water balloon
+- `createDrill()` — sprite-based IBM-360 (ibm-360.png), high obstacle, 5 points, hard difficulty
 - `createObstacle()` — factory that randomly selects obstacle type
 
 ### audio.js
@@ -129,4 +129,4 @@ const state = {
 - three-setup.js and obstacle.js export via global `var`/`function` (no `window.*` wrapper)
 - audio.js exports via `window.audioExport` object (method shorthand) to avoid `const` destructuring conflicts in game.js
 - `createObstacle()` in obstacle.js accesses `scene`, `obstacles`, `state`, `getObstacleSpawnX` from global scope (resolved at call time)
-- Background elements (planets, clouds, ambientLights) animate outside the `state.screen === 'playing'` guard, so they animate continuously on all screens
+- Background elements (clouds, ambientLights) animate outside the `state.screen === 'playing'` guard, so they animate continuously on all screens
