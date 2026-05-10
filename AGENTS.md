@@ -9,7 +9,7 @@
 ## Commands
 
 ```bash
-npx serve .    # starts local server
+python3 -m http.server 3000    # starts local server
 ```
 
 ## Architecture
@@ -26,12 +26,19 @@ npx serve .    # starts local server
 ### three-setup.js
 Exports via global `var`/`function`:
 - `scene`, `camera`, `renderer` — Three.js core
-- `player`, `playerSprite`, `playerLight` — player group and sprite
-- `gameScale` — responsive scale object
-- `gridHelper`, `stars` — background elements
-- `getScaleFactor()` — responsive scale calculation
+- `player`, `playerSprite`, `playerLight` — player group and sprite; 3D arms (`leftPivot`/`rightPivot`) on player for jump animation
+- `gameScale` — responsive scale object (`{ factor: <number> }`)
+- `gridHelper`, `ground`, `groundLine` — ground elements
+- `stars` — starfield (100 points)
+- `planets` — 3 floating planets (cyan+ring, purple+moon, blue), animated with gentle rotation + bob
+- `city` — 12-building skyline with emissive windows
+- `clouds` — 5 glowing cloud sprites with additive blending, horizontal drift
+- `ambientLights` — 3 colored orbiting point lights
+- `getScaleFactor()` — responsive scale calculation (portrait/landscape)
 - `getPlayerBaseX()` — player X position by viewport
 - `getObstacleSpawnX()` — spawn position by viewport
+- `createPlayerTexture()` — generates player sprite canvas (glowing neon character)
+- `roundRect()` — canvas rounded rectangle helper
 
 ### obstacle.js
 Exports via global `function`:
@@ -73,17 +80,34 @@ Sound types: `jump`, `score`, `powerup`, `death`
 const state = {
   screen: 'menu' | 'playing' | 'gameover',
   score: 0,
-  bestScore: 0,           // from localStorage
+  bestScore: 0,           // from localStorage ('figurin-best')
   speed: 0.15,
+  baseSpeed: 0.15,
   isJumping: false,
+  canDoubleJump: false,
+  hasUsedDoubleJump: false,
   jumpVelocity: 0,
   gravity: -0.012,
   jumpForce: 0.25,
+  doubleJumpForce: 0.22,
+  groundY: 0,
+  soundEnabled: true,
+  obstacleTimer: 0,
+  obstacleInterval: 60,
+  difficultyTimer: 0,
   difficultyLevel: 1,
+  combo: 0,
+  comboTimer: 0,
+  scoreMultiplier: 1,
+  powerups: [],
+  activePowerups: { shield: false, slowmo: false, multiplier: false },
+  slowmoTimer: 0,
+  multiplierTimer: 0,
+  lastTapTime: 0,
+  doubleTapBonus: false,
   oilSlowTimer: 0,        // slows player on oil hit
   magnetTimer: 0,          // affects gravity on magnet hit
   magnetPolarity: null,    // 'attract' or 'repel'
-  // ... powerups, combo, etc.
 };
 ```
 
@@ -102,3 +126,7 @@ const state = {
 - All juicy effects (particles, screen shake, glow) are in game.js
 - Responsive scaling via `gameScale.factor` multiplied on all sizes
 - Portrait vs landscape positions handled by `getPlayerBaseX()` and `getObstacleSpawnX()`
+- three-setup.js and obstacle.js export via global `var`/`function` (no `window.*` wrapper)
+- audio.js exports via `window.audioExport` object (method shorthand) to avoid `const` destructuring conflicts in game.js
+- `createObstacle()` in obstacle.js accesses `scene`, `obstacles`, `state`, `getObstacleSpawnX` from global scope (resolved at call time)
+- Background elements (planets, clouds, ambientLights) animate outside the `state.screen === 'playing'` guard, so they animate continuously on all screens

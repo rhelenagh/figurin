@@ -627,6 +627,13 @@ function animate() {
       player.userData.sprite.position.y = (0.9 * gameScale.factor) + Math.sin(Date.now() * 0.008) * 0.02;
     }
 
+    // Arm animation — raise on jump
+    if (player.userData.leftArm) {
+      var targetArmAngle = state.isJumping ? -1.2 : 0.1;
+      player.userData.leftArm.rotation.z += (targetArmAngle - player.userData.leftArm.rotation.z) * 0.12;
+      player.userData.rightArm.rotation.z += (targetArmAngle - player.userData.rightArm.rotation.z) * 0.12;
+    }
+
     // Trail
     spawnTrail();
 
@@ -831,7 +838,7 @@ function animate() {
     updateParticles();
     
     // Update background music
-    updateBgm();
+    updateBgm(state.soundEnabled, state.screen);
 
     // Camera shake
     updateCameraShake();
@@ -842,6 +849,24 @@ function animate() {
 
   // Animate stars
   stars.rotation.y += 0.0001;
+
+  // Animate clouds — horizontal drift
+  for (var ci = 0; ci < clouds.length; ci++) {
+    var c = clouds[ci];
+    c.position.x += c.userData.speed * 0.5;
+    if (c.position.x > 10) {
+      c.position.x = c.userData.baseX - 15;
+    }
+    c.position.y += Math.sin(Date.now() * 0.001 + c.userData.offset) * 0.0005;
+  }
+
+  // Animate ambient lights — circular orbit
+  for (var li = 0; li < ambientLights.length; li++) {
+    var l = ambientLights[li];
+    l.userData.angle += l.userData.speed;
+    l.position.x = Math.cos(l.userData.angle) * l.userData.radius + (li - 1) * 2;
+    l.position.z = Math.sin(l.userData.angle) * l.userData.radius - 5;
+  }
 
   renderer.render(scene, camera);
 }

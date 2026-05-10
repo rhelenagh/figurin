@@ -71,7 +71,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 var scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x0a0a0f, 8, 18);
+scene.fog = new THREE.Fog(0x0a0a0f, 10, 25);
 
 var camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(0, 3, 8);
@@ -161,7 +161,27 @@ var playerSprite = new THREE.Sprite(playerSpriteMat);
 playerSprite.scale.set(1.8 * gameScale.factor, 1.8 * gameScale.factor, 1.8 * gameScale.factor);
 playerSprite.position.y = 0.9 * gameScale.factor;
 player.add(playerSprite);
-player.userData = { sprite: playerSprite };
+
+// 3D arms for jump animation
+var armMat = new THREE.MeshStandardMaterial({
+  color: 0x00bb99,
+  emissive: 0x00bb99,
+  emissiveIntensity: 0.3,
+});
+var armGeom = new THREE.BoxGeometry(0.08, 0.28, 0.04);
+var leftPivot = new THREE.Group();
+leftPivot.position.set(-0.48, 0.75, 0);
+var leftArm = new THREE.Mesh(armGeom, armMat);
+leftArm.position.set(0, -0.14, 0);
+leftPivot.add(leftArm);
+player.add(leftPivot);
+var rightPivot = new THREE.Group();
+rightPivot.position.set(0.48, 0.75, 0);
+var rightArm = new THREE.Mesh(armGeom, armMat);
+rightArm.position.set(0, -0.14, 0);
+rightPivot.add(rightArm);
+player.add(rightPivot);
+player.userData = { sprite: playerSprite, leftArm: leftPivot, rightArm: rightPivot };
 
 scene.add(player);
 
@@ -205,3 +225,115 @@ starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPosi
 var starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.5 });
 var stars = new THREE.Points(starsGeometry, starsMaterial);
 scene.add(stars);
+
+
+
+// City skyline
+var city = new THREE.Group();
+var buildingColors = [0x111122, 0x0a0a1a, 0x151530, 0x080818];
+var buildingHeights = [1.2, 2.0, 1.5, 2.8, 1.0, 2.2, 1.8, 1.3, 2.5, 1.6, 2.1, 0.9];
+
+for (let i = 0; i < buildingHeights.length; i++) {
+  var bw = 0.5;
+  var bh = buildingHeights[i];
+  var bMat = new THREE.MeshStandardMaterial({
+    color: 0x0a0a1a,
+    emissive: 0x0a0a1a,
+    emissiveIntensity: 0.1,
+    roughness: 0.9,
+    metalness: 0.1,
+  });
+  var building = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.3), bMat);
+  building.position.set((i - buildingHeights.length / 2) * 0.6 + 0.3, bh / 2, 0);
+  city.add(building);
+
+  var windowCount = Math.floor(bh / 0.35);
+  for (let w = 0; w < windowCount; w++) {
+    if (Math.random() > 0.4) {
+      var wMat = new THREE.MeshBasicMaterial({
+        color: Math.random() > 0.3 ? 0xffaa44 : 0x44aaff,
+        transparent: true,
+        opacity: 0.6 + Math.random() * 0.4,
+      });
+      var win = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 0.12), wMat);
+      win.position.set(
+        (Math.random() - 0.5) * 0.3,
+        w * 0.35 + 0.25,
+        0.16
+      );
+      building.add(win);
+    }
+  }
+}
+
+city.position.set(0, 0.2, -6);
+scene.add(city);
+
+// Glowing clouds
+var clouds = [];
+var cloudPositions = [
+  { x: -4, y: 3.5, z: -2.5, s: 1.0 },
+  { x: 3, y: 4.5, z: -3.5, s: 1.2 },
+  { x: -2, y: 5.5, z: -2, s: 0.8 },
+  { x: 5, y: 3.0, z: -4, s: 0.9 },
+  { x: -5, y: 2.0, z: -3, s: 0.7 },
+];
+
+function createCloudTexture(color, size) {
+  var c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 64;
+  var ctx = c.getContext('2d');
+  var hex = '#' + color.toString(16).padStart(6, '0');
+  for (let i = 0; i < 6; i++) {
+    var cx = 20 + Math.random() * 88;
+    var cy = 10 + Math.random() * 44;
+    var r = 8 + Math.random() * 20;
+    var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    grad.addColorStop(0, hex + 'cc');
+    grad.addColorStop(0.5, hex + '44');
+    grad.addColorStop(1, hex + '00');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return new THREE.CanvasTexture(c);
+}
+
+var cloudColors = [0x00ffcc, 0xff44ff, 0x4488ff, 0x00ffcc, 0xff8844];
+
+for (let i = 0; i < cloudPositions.length; i++) {
+  var pos = cloudPositions[i];
+  var tex = createCloudTexture(cloudColors[i], pos.s);
+  var cloudMat = new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    opacity: 0.5,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  var cloud = new THREE.Sprite(cloudMat);
+  cloud.scale.set(pos.s * 2, pos.s * 1.2, 1);
+  cloud.position.set(pos.x, pos.y, pos.z);
+  scene.add(cloud);
+  cloud.userData = { baseX: pos.x, speed: 0.002 + Math.random() * 0.003, offset: Math.random() * 100 };
+  clouds.push(cloud);
+}
+
+// Dynamic ambient lights
+var ambientLights = [];
+var lightConfigs = [
+  { color: 0x00ffcc, intensity: 0.5, distance: 8, y: 2 },
+  { color: 0xff44ff, intensity: 0.4, distance: 8, y: 4 },
+  { color: 0x4488ff, intensity: 0.3, distance: 10, y: 6 },
+];
+
+for (let i = 0; i < lightConfigs.length; i++) {
+  var cfg = lightConfigs[i];
+  var dLight = new THREE.PointLight(cfg.color, cfg.intensity, cfg.distance);
+  dLight.position.set((i - 1) * 3, cfg.y, -5);
+  scene.add(dLight);
+  dLight.userData = { angle: i * 2.1, speed: 0.003 + i * 0.001, radius: 2 + i * 0.5, baseY: cfg.y };
+  ambientLights.push(dLight);
+}
