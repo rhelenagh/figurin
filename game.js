@@ -31,6 +31,9 @@ const state = {
   multiplierTimer: 0,
   lastTapTime: 0,
   doubleTapBonus: false,
+  oilSlowTimer: 0,
+  magnetTimer: 0,
+  magnetPolarity: null,
 };
 
 function getScaleFactor() {
@@ -221,7 +224,7 @@ const playerSpriteMat = new THREE.SpriteMaterial({
 });
 const playerSprite = new THREE.Sprite(playerSpriteMat);
 playerSprite.scale.set(1.8 * gameScale.factor, 1.8 * gameScale.factor, 1.8 * gameScale.factor);
-playerSprite.position.y = 0.15;
+playerSprite.position.y = 0.9 * gameScale.factor;
 player.add(playerSprite);
 
 player.userData = { sprite: playerSprite };
@@ -365,33 +368,266 @@ function createTomato() {
   return group;
 }
 
+function createWaterPuddle() {
+  const group = new THREE.Group();
+  group.userData.type = 'water';
+  group.userData.collisionHalfW = 0.5;
+  group.userData.collisionHalfH = 0.15;
+
+  const puddleGeom = new THREE.CylinderGeometry(0.5 * gameScale.factor, 0.5 * gameScale.factor, 0.08, 16);
+  const puddleMat = new THREE.MeshStandardMaterial({
+    color: 0x4488ff,
+    emissive: 0x2266ff,
+    emissiveIntensity: 0.4,
+    transparent: true,
+    opacity: 0.7,
+  });
+  const puddle = new THREE.Mesh(puddleGeom, puddleMat);
+  puddle.position.y = 0.04;
+  group.add(puddle);
+
+  const rippleGeom = new THREE.RingGeometry(0.3 * gameScale.factor, 0.45 * gameScale.factor, 16);
+  const rippleMat = new THREE.MeshBasicMaterial({
+    color: 0x88aaff,
+    transparent: true,
+    opacity: 0.5,
+    side: THREE.DoubleSide,
+  });
+  const ripple = new THREE.Mesh(rippleGeom, rippleMat);
+  ripple.rotation.x = -Math.PI / 2;
+  ripple.position.y = 0.08;
+  group.add(ripple);
+  group.userData.ripple = ripple;
+
+  group.userData.points = 1;
+  group.userData.difficulty = 'easy';
+  return group;
+}
+
+function createOilPuddle() {
+  const group = new THREE.Group();
+  group.userData.type = 'oil';
+  group.userData.collisionHalfW = 0.6;
+  group.userData.collisionHalfH = 0.12;
+  group.userData.effectTimer = 0;
+
+  const puddleGeom = new THREE.CylinderGeometry(0.6 * gameScale.factor, 0.55 * gameScale.factor, 0.06, 16);
+  const puddleMat = new THREE.MeshStandardMaterial({
+    color: 0x442200,
+    emissive: 0x331100,
+    emissiveIntensity: 0.3,
+    transparent: true,
+    opacity: 0.8,
+  });
+  const puddle = new THREE.Mesh(puddleGeom, puddleMat);
+  puddle.position.y = 0.03;
+  group.add(puddle);
+
+  const shineGeom = new THREE.RingGeometry(0.2 * gameScale.factor, 0.35 * gameScale.factor, 16);
+  const shineMat = new THREE.MeshBasicMaterial({
+    color: 0xff6600,
+    transparent: true,
+    opacity: 0.3,
+    side: THREE.DoubleSide,
+  });
+  const shine = new THREE.Mesh(shineGeom, shineMat);
+  shine.rotation.x = -Math.PI / 2;
+  shine.position.y = 0.06;
+  group.add(shine);
+
+  group.userData.points = 1;
+  group.userData.difficulty = 'easy';
+  return group;
+}
+
+function createLiveWire() {
+  const group = new THREE.Group();
+  group.userData.type = 'wire';
+  group.userData.collisionHalfW = 0.2;
+  group.userData.collisionHalfH = 0.5;
+  group.userData.sparkOn = true;
+  group.userData.sparkTimer = 0;
+
+  const wireGeom = new THREE.CylinderGeometry(0.02 * gameScale.factor, 0.02 * gameScale.factor, 0.8, 8);
+  const wireMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+  const wire = new THREE.Mesh(wireGeom, wireMat);
+  group.add(wire);
+
+  const sparkGeom = new THREE.SphereGeometry(0.12 * gameScale.factor, 8, 8);
+  const sparkMat = new THREE.MeshBasicMaterial({
+    color: 0xffff00,
+    transparent: true,
+    opacity: 0.9,
+  });
+  const spark = new THREE.Mesh(sparkGeom, sparkMat);
+  spark.position.y = 0.4;
+  group.add(spark);
+  group.userData.spark = spark;
+
+  const light = new THREE.PointLight(0xffff00, 1, 2);
+  light.position.y = 0.4;
+  group.add(light);
+  group.userData.sparkLight = light;
+
+  group.userData.points = 2;
+  group.userData.difficulty = 'medium';
+  return group;
+}
+
+function createDrone() {
+  const group = new THREE.Group();
+  group.userData.type = 'drone';
+  const height = 0.2 + Math.random() * 0.5;
+  group.userData.collisionHalfW = 0.25;
+  group.userData.collisionHalfH = 0.2;
+  group.userData.height = height;
+  group.userData.floatOffset = Math.random() * Math.PI * 2;
+
+  const bodyGeom = new THREE.SphereGeometry(0.15 * gameScale.factor, 8, 8);
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0x888888,
+    emissive: 0xff3333,
+    emissiveIntensity: 0.5,
+  });
+  const body = new THREE.Mesh(bodyGeom, bodyMat);
+  group.add(body);
+
+  const rotorGeom = new THREE.TorusGeometry(0.12 * gameScale.factor, 0.02, 4, 8);
+  const rotorMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+  const rotor1 = new THREE.Mesh(rotorGeom, rotorMat);
+  rotor1.rotation.x = Math.PI / 2;
+  rotor1.position.y = 0.08;
+  group.add(rotor1);
+
+  const rotor2 = new THREE.Mesh(rotorGeom, rotorMat);
+  rotor2.rotation.x = Math.PI / 2;
+  rotor2.position.y = -0.08;
+  group.add(rotor2);
+
+  const eyeGeom = new THREE.SphereGeometry(0.05 * gameScale.factor, 6, 6);
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const eye = new THREE.Mesh(eyeGeom, eyeMat);
+  eye.position.z = 0.12;
+  group.add(eye);
+
+  group.position.y = height;
+  group.userData.points = 1;
+  group.userData.difficulty = 'easy';
+  return group;
+}
+
+function createMagnet() {
+  const group = new THREE.Group();
+  group.userData.type = 'magnet';
+  group.userData.collisionHalfW = 0.4;
+  group.userData.collisionHalfH = 0.6;
+  group.userData.magnetActive = true;
+  group.userData.polarity = Math.random() > 0.5 ? 'attract' : 'repel';
+
+  const magnetType = group.userData.polarity === 'attract' ? 0xff4444 : 0x4444ff;
+  const emissiveType = group.userData.polarity === 'attract' ? 0xff0000 : 0x0000ff;
+
+  const horseshoeGeom = new THREE.TorusGeometry(0.3 * gameScale.factor, 0.08 * gameScale.factor, 8, 16, Math.PI);
+  const magnetMat = new THREE.MeshStandardMaterial({
+    color: magnetType,
+    emissive: emissiveType,
+    emissiveIntensity: 0.6,
+  });
+  const horseshoe = new THREE.Mesh(horseshoeGeom, magnetMat);
+  horseshoe.rotation.z = Math.PI;
+  horseshoe.position.y = 0.3 * gameScale.factor;
+  group.add(horseshoe);
+
+  const baseGeom = new THREE.BoxGeometry(0.7 * gameScale.factor, 0.15 * gameScale.factor, 0.15 * gameScale.factor);
+  const base = new THREE.Mesh(baseGeom, magnetMat);
+  base.position.y = -0.02;
+  group.add(base);
+
+  const fieldGeom = new THREE.SphereGeometry(0.5 * gameScale.factor, 8, 8);
+  const fieldMat = new THREE.MeshBasicMaterial({
+    color: magnetType,
+    transparent: true,
+    opacity: 0.15,
+  });
+  const field = new THREE.Mesh(fieldGeom, fieldMat);
+  field.position.y = 0.2 * gameScale.factor;
+  group.add(field);
+  group.userData.field = field;
+
+  const light = new THREE.PointLight(magnetType, 1, 3);
+  light.position.y = 0.3 * gameScale.factor;
+  group.add(light);
+
+  group.userData.points = 2;
+  group.userData.difficulty = 'medium';
+  return group;
+}
+
 function createObstacle() {
   const rand = Math.random();
   let obstacle;
-  let yPos = 0.32;
+  let yPos = 0.35;
   
   // Difficulty-based spawning - harder obstacles appear more as difficulty increases
-  const spaceshipChance = Math.min(0.33 + (state.difficultyLevel * 0.02), 0.5);
-  const tomatoChance = Math.min(0.33 + (state.difficultyLevel * 0.01), 0.4);
+  const spaceshipChance = Math.min(0.25 + (state.difficultyLevel * 0.015), 0.35);
+  const tomatoChance = Math.min(0.25 + (state.difficultyLevel * 0.01), 0.35);
+  const waterChance = 0.12;
+  const wireChance = 0.08;
+  const droneChance = 0.1;
+  const magnetChance = 0.07;
   
-  if (rand < spaceshipChance) {
+  let cumulative = 0;
+  cumulative += spaceshipChance;
+  if (rand < cumulative) {
     obstacle = createSpaceship();
-    yPos = 0.4 + Math.random() * 0.4; // Can fly higher
-    obstacle.userData.type = 'spaceship';
-    obstacle.userData.points = 3; // Hardest - 3 points
+    yPos = 0.45 + Math.random() * 0.4;
+    obstacle.userData.points = 3;
     obstacle.userData.difficulty = 'hard';
-  } else if (rand < spaceshipChance + tomatoChance) {
-    obstacle = createTomato();
-    yPos = 0.32;
-    obstacle.userData.type = 'tomato';
-    obstacle.userData.points = 2; // Medium - 2 points
-    obstacle.userData.difficulty = 'medium';
   } else {
-    obstacle = createDog();
-    yPos = 0.3;
-    obstacle.userData.type = 'dog';
-    obstacle.userData.points = 1; // Easy - 1 point
-    obstacle.userData.difficulty = 'easy';
+    cumulative += tomatoChance;
+    if (rand < cumulative) {
+      obstacle = createTomato();
+      yPos = 0.35;
+      obstacle.userData.points = 2;
+      obstacle.userData.difficulty = 'medium';
+    } else {
+      cumulative += waterChance;
+      if (rand < cumulative) {
+        obstacle = createWaterPuddle();
+        yPos = 0.1;
+        obstacle.userData.points = 1;
+        obstacle.userData.difficulty = 'easy';
+      } else {
+        cumulative += wireChance;
+        if (rand < cumulative) {
+          obstacle = createLiveWire();
+          yPos = 0.5;
+          obstacle.userData.points = 2;
+          obstacle.userData.difficulty = 'medium';
+        } else {
+          cumulative += droneChance;
+          if (rand < cumulative) {
+            obstacle = createDrone();
+            yPos = 0.5 + Math.random() * 0.3;
+            obstacle.userData.points = 1;
+            obstacle.userData.difficulty = 'easy';
+          } else {
+            cumulative += magnetChance;
+            if (rand < cumulative) {
+              obstacle = createMagnet();
+              yPos = 0.35;
+              obstacle.userData.points = 2;
+              obstacle.userData.difficulty = 'medium';
+            } else {
+              obstacle = createDog();
+              yPos = 0.3;
+              obstacle.userData.points = 1;
+              obstacle.userData.difficulty = 'easy';
+            }
+          }
+        }
+      }
+    }
   }
   obstacle.position.set(getObstacleSpawnX(), yPos, 0);
   scene.add(obstacle);
@@ -929,7 +1165,7 @@ function resetGame() {
   state.activePowerups = { shield: false, slowmo: false, multiplier: false };
   state.slowmoTimer = 0;
   state.multiplierTimer = 0;
-  player.position.y = 0.3;
+  player.position.y = 0;
 
   // Remove obstacles
   obstacles.forEach(o => scene.remove(o));
@@ -952,6 +1188,13 @@ function resetGame() {
   
   // Remove powerup indicators
   document.querySelectorAll('.powerup-indicator').forEach(el => el.remove());
+
+  // Reset effect timers
+  state.oilSlowTimer = 0;
+  state.magnetTimer = 0;
+  state.magnetPolarity = null;
+  state.gravity = -0.012;
+  state.jumpForce = 0.25;
 
   updateScoreDisplay();
 }
@@ -1111,17 +1354,40 @@ function animate() {
       state.jumpVelocity += state.gravity;
       player.position.y += state.jumpVelocity;
 
-      if (player.position.y <= 0.3) {
-        player.position.y = 0.3;
+      if (player.position.y <= 0) {
+        player.position.y = 0;
         state.isJumping = false;
         state.jumpVelocity = 0;
         spawnParticles(player.position.clone(), 0x00ffcc, 3);
       }
     }
 
+    // Oil slow effect
+    let speedMod = 1;
+    if (state.oilSlowTimer > 0) {
+      state.oilSlowTimer--;
+      speedMod = 0.5;
+    }
+
+    // Magnet effect
+    if (state.magnetTimer > 0) {
+      state.magnetTimer--;
+      if (state.magnetPolarity === 'attract') {
+        state.gravity = -0.006;
+        state.jumpForce = 0.18;
+      } else {
+        state.gravity = -0.018;
+        state.jumpForce = 0.35;
+      }
+    } else {
+      state.gravity = -0.012;
+      state.jumpForce = 0.25;
+      state.magnetPolarity = null;
+    }
+
     // Player sprite gentle bob
     if (player.userData.sprite && !state.isJumping) {
-      player.userData.sprite.position.y = 0.15 + Math.sin(Date.now() * 0.008) * 0.02;
+      player.userData.sprite.position.y = (0.9 * gameScale.factor) + Math.sin(Date.now() * 0.008) * 0.02;
     }
 
     // Trail
@@ -1168,6 +1434,7 @@ function animate() {
     // Update obstacles
     let scored = false;
     let obstacleSpeed = state.activePowerups.slowmo ? state.speed * 0.4 : state.speed;
+    obstacleSpeed *= speedMod;
     
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const obs = obstacles[i];
@@ -1189,6 +1456,35 @@ function animate() {
         obs.userData.tail.rotation.y = Math.sin(t * 0.7) * 0.5;
       }
 
+      // Animate wire sparks
+      if (obs.userData.type === 'wire') {
+        obs.userData.sparkTimer++;
+        if (obs.userData.sparkTimer > 30) {
+          obs.userData.sparkOn = !obs.userData.sparkOn;
+          obs.userData.sparkTimer = 0;
+          if (obs.userData.spark) {
+            obs.userData.spark.visible = obs.userData.sparkOn;
+          }
+          if (obs.userData.sparkLight) {
+            obs.userData.sparkLight.intensity = obs.userData.sparkOn ? 1 : 0;
+          }
+        }
+      }
+
+      // Animate drone floating
+      if (obs.userData.type === 'drone') {
+        const floatT = Date.now() * 0.005 + obs.userData.floatOffset;
+        obs.position.y = obs.userData.height + Math.sin(floatT) * 0.1;
+        if (obs.children[1]) obs.children[1].rotation.y += 0.3;
+        if (obs.children[2]) obs.children[2].rotation.y -= 0.3;
+      }
+
+      // Animate puddle ripples
+      if (obs.userData.type === 'water' && obs.userData.ripple) {
+        const rippleScale = 1 + Math.sin(Date.now() * 0.005) * 0.2;
+        obs.userData.ripple.scale.set(rippleScale, rippleScale, 1);
+      }
+
       // Check collision
       if (checkCollision(player, obs)) {
         if (state.activePowerups.shield) {
@@ -1200,6 +1496,32 @@ function animate() {
           const shieldIndicator = document.getElementById('powerup-shield');
           if (shieldIndicator) shieldIndicator.remove();
           continue;
+        } else if (obs.userData.type === 'water') {
+          gameOver();
+          break;
+        } else if (obs.userData.type === 'oil') {
+          state.oilSlowTimer = 120;
+          playSound('score');
+          spawnParticles(obs.position.clone(), 0xff6600, 10);
+          obs.collisionHandled = true;
+          obs.material.opacity = 0.4;
+        } else if (obs.userData.type === 'wire') {
+          if (obs.userData.sparkOn) {
+            gameOver();
+            break;
+          }
+        } else if (obs.userData.type === 'magnet') {
+          state.magnetTimer = 90;
+          state.magnetPolarity = obs.userData.polarity;
+          playSound('powerup');
+          spawnParticles(obs.position.clone(), obs.userData.polarity === 'attract' ? 0xff4444 : 0x4444ff, 15);
+          obs.collisionHandled = true;
+        } else if (obs.userData.type === 'drone') {
+          if (!obs.collisionHandled) {
+            obs.collisionHandled = true;
+            playSound('score');
+            spawnParticles(obs.position.clone(), 0xff0000, 8);
+          }
         } else if (obs.userData.type === 'dog') {
           spawnFloatingText("I've got you!", player.position.clone(), 0xff00ff);
           spawnParticles(player.position.clone(), 0xff00ff, 25);
