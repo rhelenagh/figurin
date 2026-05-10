@@ -16,26 +16,25 @@ npx serve .    # starts local server
 
 - `index.html` — entry point, loads Three.js from CDN then module scripts
 - `style.css` — all UI styling (dark neon theme, screen animations)
-- `three-setup.js` — Three.js initialization: scene, camera, renderer, player, ground, stars, responsive helpers
-- `obstacles.js` — all obstacle factory functions: dog, spaceship, tomato, water puddle, oil puddle, live wire, drone, magnet, toaster, watermelon, water balloon
-- `audio.js` — Web Audio API system: sound effects (jump, score, powerup, death) and background music (chiptune style)
-- `game.js` — game loop, state management, input handling, particles, collision detection
+- `three-setup.js` — Three.js initialization: scene, camera, renderer, player, ground, stars, responsive helpers (exports via global `var`/`function`)
+- `audio.js` — Web Audio API system: sound effects (jump, score, powerup, death) and background music (chiptune style) (exports via `window.audioExport`)
+- `obstacle.js` — all obstacle factory functions: dog, spaceship, tomato, water puddle, oil puddle, live wire, drone, magnet, toaster, watermelon, water balloon (exports via global `function`)
+- `game.js` — game loop, state management, input handling, particles, collision detection, powerups
 
 ## File Responsibilities
 
 ### three-setup.js
-Exports via `window.gameExport`:
+Exports via global `var`/`function`:
 - `scene`, `camera`, `renderer` — Three.js core
 - `player`, `playerSprite`, `playerLight` — player group and sprite
 - `gameScale` — responsive scale object
-- `obstacles` — obstacle array
 - `gridHelper`, `stars` — background elements
 - `getScaleFactor()` — responsive scale calculation
 - `getPlayerBaseX()` — player X position by viewport
 - `getObstacleSpawnX()` — spawn position by viewport
 
-### obstacles.js
-Exports via `window.obstaclesExport`:
+### obstacle.js
+Exports via global `function`:
 - `createDog()` — sprite-based dog (bella.png)
 - `createSpaceship()` — metallic cone with wings
 - `createTomato()` — red sphere with stem
@@ -47,7 +46,7 @@ Exports via `window.obstaclesExport`:
 - `createToaster()` — metallic box with eyes
 - `createWatermelon()` — green striped sphere (rolling)
 - `createWaterBalloon()` — falling water balloon
-- `createObstacle(state)` — factory that randomly selects obstacle type
+- `createObstacle()` — factory that randomly selects obstacle type
 
 ### audio.js
 Exports via `window.audioExport`:
@@ -65,6 +64,8 @@ Sound types: `jump`, `score`, `powerup`, `death`
 - Game loop: physics, collision, spawning, scoring
 - Particles system, floating text, trail effects
 - Collision detection with obstacle-specific effects
+- Powerup system (shield, slowmo, multiplier, bonus)
+- `obstacles` array — obstacle lifecycle management
 
 ## State Object
 
@@ -96,7 +97,7 @@ const state = {
 
 - Keep HTML/CSS/JS separate; no bundler
 - Three.js loaded via CDN script tag, not npm
-- Module loading order: three-setup.js → obstacles.js → audio.js → game.js
+- Module loading order: three-setup.js → audio.js → obstacle.js → game.js
 - Audio uses raw Web Audio API oscillators (no files)
 - All juicy effects (particles, screen shake, glow) are in game.js
 - Responsive scaling via `gameScale.factor` multiplied on all sizes
