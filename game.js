@@ -36,6 +36,8 @@ const state = {
   magnetPolarity: null,
 };
 
+const { playSound, startBgm, stopBgm, updateBgm, resumeAudioContext } = window.audioExport;
+
 function getScaleFactor() {
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -89,9 +91,17 @@ function getPlayerBaseX() {
 
 function getObstacleSpawnX() {
   const width = window.innerWidth;
-  if (width <= 400) return 8;
-  if (width <= 600) return 10;
-  return 12;
+  const height = window.innerHeight;
+  const isPortrait = height > width;
+  
+  if (isPortrait) {
+    if (width <= 400) return 4;
+    if (width <= 480) return 4.5;
+    return 5;
+  } else {
+    if (width <= 600) return 5.5;
+    return 7;
+  }
 }
 
 // Three.js setup
@@ -132,7 +142,7 @@ function getPlayerBaseX() {
     return -3;
   }
 }
-player.position.set(getPlayerBaseX(), 0.3, 0);
+player.position.set(getPlayerBaseX(), 0, 0);
 
 function createPlayerTexture() {
   const canvas = document.createElement('canvas');
@@ -268,7 +278,6 @@ function createDog() {
   // Load texture if not loaded yet
   if (!bellaTexture) {
     bellaTexture = bellaTextureLoader.load('./assets/bella.png');
-    bellaTexture.flipY = true;
   }
 
   const dogSpriteMat = new THREE.SpriteMaterial({
@@ -279,7 +288,7 @@ function createDog() {
   const dogSprite = new THREE.Sprite(dogSpriteMat);
   const scale = 2.0 * gameScale.factor;
   dogSprite.scale.set(scale, scale, scale);
-  dogSprite.position.y = 0.4;
+  dogSprite.position.y = 0.5;
   group.add(dogSprite);
 
   group.userData.sprite = dogSprite;
@@ -563,18 +572,148 @@ function createMagnet() {
   return group;
 }
 
+function createToaster() {
+  const group = new THREE.Group();
+  group.userData.type = 'toaster';
+  group.userData.collisionHalfW = 0.35;
+  group.userData.collisionHalfH = 0.4;
+  group.userData.shootTimer = 0;
+  group.userData.projectiles = [];
+  group.userData.triggered = false;
+
+  const bodyGeom = new THREE.BoxGeometry(0.5 * gameScale.factor, 0.35 * gameScale.factor, 0.4 * gameScale.factor);
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0xcccccc,
+    emissive: 0xff2200,
+    emissiveIntensity: 0.3,
+    metalness: 0.8,
+    roughness: 0.3,
+  });
+  const body = new THREE.Mesh(bodyGeom, bodyMat);
+  body.position.y = 0.175 * gameScale.factor;
+  group.add(body);
+
+  const slotGeom = new THREE.BoxGeometry(0.3 * gameScale.factor, 0.05, 0.25 * gameScale.factor);
+  const slotMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+  const slot = new THREE.Mesh(slotGeom, slotMat);
+  slot.position.y = 0.38 * gameScale.factor;
+  group.add(slot);
+
+  for (let i = 0; i < 2; i++) {
+    const leverGeom = new THREE.BoxGeometry(0.06, 0.1, 0.06);
+    const leverMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
+    const lever = new THREE.Mesh(leverGeom, leverMat);
+    lever.position.set(-0.15 + i * 0.3, 0.32 * gameScale.factor, 0.25 * gameScale.factor);
+    group.add(lever);
+  }
+
+  const eyeGeom = new THREE.SphereGeometry(0.06 * gameScale.factor, 8, 8);
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+  for (let i = 0; i < 2; i++) {
+    const eye = new THREE.Mesh(eyeGeom, eyeMat);
+    eye.position.set(-0.1 + i * 0.2, 0.25 * gameScale.factor, 0.22 * gameScale.factor);
+    group.add(eye);
+  }
+
+  group.userData.points = 2;
+  group.userData.difficulty = 'medium';
+  return group;
+}
+
+function createWatermelon() {
+  const group = new THREE.Group();
+  group.userData.type = 'watermelon';
+  group.userData.collisionHalfW = 0.5;
+  group.userData.collisionHalfH = 0.45;
+
+  const melonGeom = new THREE.SphereGeometry(0.5 * gameScale.factor, 16, 16);
+  const melonMat = new THREE.MeshStandardMaterial({
+    color: 0x228833,
+    emissive: 0x114422,
+    emissiveIntensity: 0.3,
+    roughness: 0.6,
+  });
+  const melon = new THREE.Mesh(melonGeom, melonMat);
+  melon.scale.y = 0.7;
+  melon.position.y = 0.35 * gameScale.factor;
+  group.add(melon);
+
+  const stripeGeom = new THREE.TorusGeometry(0.45 * gameScale.factor, 0.04 * gameScale.factor, 4, 16);
+  const stripeMat = new THREE.MeshStandardMaterial({ color: 0x116622 });
+  const stripe = new THREE.Mesh(stripeGeom, stripeMat);
+  stripe.position.y = 0.35 * gameScale.factor;
+  stripe.rotation.x = Math.PI / 2;
+  group.add(stripe);
+
+  const stripe2 = new THREE.Mesh(stripeGeom, stripeMat);
+  stripe2.position.y = 0.35 * gameScale.factor;
+  stripe2.rotation.x = Math.PI / 2;
+  stripe2.rotation.y = Math.PI / 2;
+  group.add(stripe2);
+
+  group.userData.rollSpeed = 0.05;
+  group.userData.points = 2;
+  group.userData.difficulty = 'medium';
+  return group;
+}
+
+function createWaterBalloon() {
+  const group = new THREE.Group();
+  group.userData.type = 'waterballoon';
+  group.userData.collisionHalfW = 0.25;
+  group.userData.collisionHalfH = 0.25;
+  group.userData.falling = true;
+  group.userData.startX = 6 + Math.random() * 3;
+
+  const balloonGeom = new THREE.SphereGeometry(0.25 * gameScale.factor, 12, 12);
+  const balloonMat = new THREE.MeshStandardMaterial({
+    color: 0x4488ff,
+    emissive: 0x2266ff,
+    emissiveIntensity: 0.4,
+    transparent: true,
+    opacity: 0.7,
+  });
+  const balloon = new THREE.Mesh(balloonGeom, balloonMat);
+  balloon.scale.y = 1.2;
+  balloon.position.y = 0.3 * gameScale.factor;
+  group.add(balloon);
+
+  const knotGeom = new THREE.ConeGeometry(0.05 * gameScale.factor, 0.1 * gameScale.factor, 4);
+  const knotMat = new THREE.MeshStandardMaterial({ color: 0x3366dd });
+  const knot = new THREE.Mesh(knotGeom, knotMat);
+  knot.position.y = 0.55 * gameScale.factor;
+  group.add(knot);
+
+  const stringGeom = new THREE.CylinderGeometry(0.008, 0.008, 0.2 * gameScale.factor, 4);
+  const stringMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const string = new THREE.Mesh(stringGeom, stringMat);
+  string.position.y = 0.7 * gameScale.factor;
+  group.add(string);
+
+  group.position.x = group.userData.startX;
+  group.position.y = 3;
+  group.userData.fallSpeed = 0.02 + Math.random() * 0.01;
+
+  group.userData.points = 1;
+  group.userData.difficulty = 'easy';
+  return group;
+}
+
 function createObstacle() {
   const rand = Math.random();
   let obstacle;
   let yPos = 0.35;
   
   // Difficulty-based spawning - harder obstacles appear more as difficulty increases
-  const spaceshipChance = Math.min(0.25 + (state.difficultyLevel * 0.015), 0.35);
-  const tomatoChance = Math.min(0.25 + (state.difficultyLevel * 0.01), 0.35);
-  const waterChance = 0.12;
-  const wireChance = 0.08;
-  const droneChance = 0.1;
-  const magnetChance = 0.07;
+  const spaceshipChance = Math.min(0.2 + (state.difficultyLevel * 0.012), 0.28);
+  const tomatoChance = Math.min(0.18 + (state.difficultyLevel * 0.01), 0.25);
+  const waterChance = 0.08;
+  const wireChance = 0.06;
+  const droneChance = 0.08;
+  const magnetChance = 0.06;
+  const toasterChance = 0.07;
+  const watermelonChance = 0.06;
+  const balloonChance = 0.08;
   
   let cumulative = 0;
   cumulative += spaceshipChance;
@@ -587,7 +726,7 @@ function createObstacle() {
     cumulative += tomatoChance;
     if (rand < cumulative) {
       obstacle = createTomato();
-      yPos = 0.35;
+      yPos = 0.55;
       obstacle.userData.points = 2;
       obstacle.userData.difficulty = 'medium';
     } else {
@@ -619,10 +758,34 @@ function createObstacle() {
               obstacle.userData.points = 2;
               obstacle.userData.difficulty = 'medium';
             } else {
-              obstacle = createDog();
-              yPos = 0.3;
-              obstacle.userData.points = 1;
-              obstacle.userData.difficulty = 'easy';
+              cumulative += toasterChance;
+              if (rand < cumulative) {
+                obstacle = createToaster();
+                yPos = 0.25;
+                obstacle.userData.points = 2;
+                obstacle.userData.difficulty = 'medium';
+              } else {
+                cumulative += watermelonChance;
+                if (rand < cumulative) {
+                  obstacle = createWatermelon();
+                  yPos = 0.35;
+                  obstacle.userData.points = 2;
+                  obstacle.userData.difficulty = 'medium';
+                } else {
+                  cumulative += balloonChance;
+                  if (rand < cumulative) {
+                    obstacle = createWaterBalloon();
+                    yPos = 3;
+                    obstacle.userData.points = 1;
+                    obstacle.userData.difficulty = 'easy';
+                  } else {
+obstacle = createDog();
+                    yPos = 0.9;
+                    obstacle.userData.points = 1;
+                    obstacle.userData.difficulty = 'easy';
+                  }
+                }
+              }
             }
           }
         }
@@ -919,159 +1082,6 @@ function updateFloatingTexts() {
       ft.material.dispose();
       floatingTexts.splice(i, 1);
     }
-  }
-}
-
-// Audio system
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function playSound(type) {
-  if (!state.soundEnabled) return;
-
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-
-  const now = audioCtx.currentTime;
-
-  switch (type) {
-    case 'jump':
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(400, now);
-      osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-      gain.gain.setValueAtTime(0.5, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-      osc.start(now);
-      osc.stop(now + 0.15);
-      break;
-    case 'score':
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(523, now);
-      osc.frequency.setValueAtTime(659, now + 0.05);
-      osc.frequency.setValueAtTime(784, now + 0.1);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-      osc.start(now);
-      osc.stop(now + 0.2);
-      break;
-    case 'powerup':
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(523, now);
-      osc.frequency.setValueAtTime(659, now + 0.08);
-      osc.frequency.setValueAtTime(784, now + 0.16);
-      osc.frequency.setValueAtTime(1047, now + 0.24);
-      gain.gain.setValueAtTime(0.4, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-      osc.start(now);
-      osc.stop(now + 0.3);
-      break;
-    case 'death':
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(200, now);
-      osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
-      gain.gain.setValueAtTime(0.5, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-      osc.start(now);
-      osc.stop(now + 0.3);
-      break;
-  }
-}
-
-// Background music system (chiptune style)
-let bgmOscillators = [];
-let bgmGain = null;
-let bgmPlaying = false;
-let bgmNoteIndex = 0;
-let bgmNoteTimer = 0;
-
-// Simple retro melody notes (C major pentatonic with some variations)
-const bgmNotes = [
-  261.63, 293.66, 329.63, 392.00, 440.00, // C D E G A
-  392.00, 329.63, 293.66, 261.63, 293.66, // G E D C D
-  329.63, 392.00, 440.00, 523.25, 587.33, // E G A C D
-  523.25, 440.00, 392.00, 329.63, 261.63, // A G E C
-];
-
-// Bass line
-const bgmBass = [65.41, 73.42, 82.41, 98.00, 65.41, 73.42, 87.31, 65.41];
-
-function startBgm() {
-  if (bgmPlaying || !state.soundEnabled) return;
-  
-  bgmGain = audioCtx.createGain();
-  bgmGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-  bgmGain.connect(audioCtx.destination);
-  
-  bgmPlaying = true;
-  bgmNoteIndex = 0;
-  bgmNoteTimer = 0;
-}
-
-function stopBgm() {
-  bgmPlaying = false;
-  bgmOscillators.forEach(osc => {
-    try { osc.stop(); } catch(e) {}
-  });
-  bgmOscillators = [];
-  if (bgmGain) {
-    bgmGain.disconnect();
-    bgmGain = null;
-  }
-}
-
-function updateBgm() {
-  if (!bgmPlaying || !state.soundEnabled || state.screen !== 'playing') return;
-  
-  bgmNoteTimer++;
-  
-  // Play note every 8 frames (about 133 BPM at 60fps)
-  if (bgmNoteTimer >= 8) {
-    bgmNoteTimer = 0;
-    
-    const now = audioCtx.currentTime;
-    
-    // Lead melody
-    const leadOsc = audioCtx.createOscillator();
-    const leadGain = audioCtx.createGain();
-    leadOsc.type = 'square';
-    leadOsc.frequency.setValueAtTime(bgmNotes[bgmNoteIndex % bgmNotes.length], now);
-    leadGain.gain.setValueAtTime(0.08, now);
-    leadGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-    leadOsc.connect(leadGain);
-    leadGain.connect(bgmGain);
-    leadOsc.start(now);
-    leadOsc.stop(now + 0.15);
-    
-    // Bass note (every 2nd beat)
-    if (bgmNoteIndex % 2 === 0) {
-      const bassOsc = audioCtx.createOscillator();
-      const bassGain = audioCtx.createGain();
-      bassOsc.type = 'triangle';
-      bassOsc.frequency.setValueAtTime(bgmBass[Math.floor(bgmNoteIndex / 2) % bgmBass.length], now);
-      bassGain.gain.setValueAtTime(0.12, now);
-      bassGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-      bassOsc.connect(bassGain);
-      bassGain.connect(bgmGain);
-      bassOsc.start(now);
-      bassOsc.stop(now + 0.3);
-    }
-    
-    // Hi-hat on off-beats
-    if (bgmNoteIndex % 4 === 2) {
-      const hihatOsc = audioCtx.createOscillator();
-      const hihatGain = audioCtx.createGain();
-      hihatOsc.type = 'square';
-      hihatOsc.frequency.setValueAtTime(2000, now);
-      hihatGain.gain.setValueAtTime(0.02, now);
-      hihatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
-      hihatOsc.connect(hihatGain);
-      hihatGain.connect(bgmGain);
-      hihatOsc.start(now);
-      hihatOsc.stop(now + 0.03);
-    }
-    
-    bgmNoteIndex++;
   }
 }
 
@@ -1408,7 +1418,7 @@ function animate() {
       state.speed = Math.min(state.baseSpeed + (state.difficultyLevel * speedIncrease), 0.35);
       
       // Obstacle interval decreases - but not below threshold
-      const minInterval = Math.max(25, 60 - (state.difficultyLevel * 3));
+      const minInterval = Math.max(35, 70 - (state.difficultyLevel * 3));
       state.obstacleInterval = Math.max(minInterval, state.obstacleInterval - 2);
     }
 
@@ -1418,8 +1428,8 @@ function animate() {
       state.obstacleTimer = 0;
       
       // Randomize next interval slightly
-      const variation = Math.floor(Math.random() * 15 - 7);
-      state.obstacleInterval = Math.max(25, state.obstacleInterval + variation);
+      const variation = Math.floor(Math.random() * 10);
+      state.obstacleInterval = Math.max(35, state.obstacleInterval + variation);
       
       // Powerup spawn chance increases with difficulty
       const powerupChance = 0.05 + (state.difficultyLevel * 0.02);
@@ -1456,33 +1466,30 @@ function animate() {
         obs.userData.tail.rotation.y = Math.sin(t * 0.7) * 0.5;
       }
 
-      // Animate wire sparks
-      if (obs.userData.type === 'wire') {
-        obs.userData.sparkTimer++;
-        if (obs.userData.sparkTimer > 30) {
-          obs.userData.sparkOn = !obs.userData.sparkOn;
-          obs.userData.sparkTimer = 0;
-          if (obs.userData.spark) {
-            obs.userData.spark.visible = obs.userData.sparkOn;
-          }
-          if (obs.userData.sparkLight) {
-            obs.userData.sparkLight.intensity = obs.userData.sparkOn ? 1 : 0;
-          }
+      // Animate watermelon rolling
+      if (obs.userData.type === 'watermelon') {
+        obs.rotation.z += obs.userData.rollSpeed;
+      }
+
+      // Animate water balloon falling
+      if (obs.userData.type === 'waterballoon') {
+        if (obs.position.y > 0.3 * gameScale.factor) {
+          obs.position.y -= obs.userData.fallSpeed;
+        } else {
+          obs.position.y = 0.3 * gameScale.factor;
         }
       }
 
-      // Animate drone floating
-      if (obs.userData.type === 'drone') {
-        const floatT = Date.now() * 0.005 + obs.userData.floatOffset;
-        obs.position.y = obs.userData.height + Math.sin(floatT) * 0.1;
-        if (obs.children[1]) obs.children[1].rotation.y += 0.3;
-        if (obs.children[2]) obs.children[2].rotation.y -= 0.3;
-      }
-
-      // Animate puddle ripples
-      if (obs.userData.type === 'water' && obs.userData.ripple) {
-        const rippleScale = 1 + Math.sin(Date.now() * 0.005) * 0.2;
-        obs.userData.ripple.scale.set(rippleScale, rippleScale, 1);
+      // Animate toaster shooting toast
+      if (obs.userData.type === 'toaster' && !obs.userData.triggered) {
+        const dx = player.position.x - obs.position.x;
+        if (dx < 3 && dx > 0) {
+          obs.userData.shootTimer++;
+          if (obs.userData.shootTimer > 45) {
+            obs.userData.shootTimer = 0;
+            spawnParticles(obs.position.clone().add(new THREE.Vector3(0, 0.4, 0)), 0xffaa33, 5);
+          }
+        }
       }
 
       // Check collision
@@ -1504,18 +1511,6 @@ function animate() {
           playSound('score');
           spawnParticles(obs.position.clone(), 0xff6600, 10);
           obs.collisionHandled = true;
-          obs.material.opacity = 0.4;
-        } else if (obs.userData.type === 'wire') {
-          if (obs.userData.sparkOn) {
-            gameOver();
-            break;
-          }
-        } else if (obs.userData.type === 'magnet') {
-          state.magnetTimer = 90;
-          state.magnetPolarity = obs.userData.polarity;
-          playSound('powerup');
-          spawnParticles(obs.position.clone(), obs.userData.polarity === 'attract' ? 0xff4444 : 0x4444ff, 15);
-          obs.collisionHandled = true;
         } else if (obs.userData.type === 'drone') {
           if (!obs.collisionHandled) {
             obs.collisionHandled = true;
@@ -1534,7 +1529,7 @@ function animate() {
         }
       }
 
-      // Score when obstacle passes player - use difficulty-based points
+      // Score when obstacle passes player
       if (!obs.passed && obs.position.x < player.position.x) {
         obs.passed = true;
         
@@ -1578,7 +1573,7 @@ function animate() {
       }
 
       // Remove off-screen
-      if (obs.position.x < -12) {
+      if (obs.position.x < -5) {
         scene.remove(obs);
         obstacles.splice(i, 1);
       }
