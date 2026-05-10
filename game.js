@@ -714,6 +714,12 @@ function animate() {
         }
       }
 
+      // Animate drill bob
+      if (obs.userData.type === 'drill' && obs.userData.sprite) {
+        const t = Date.now() * 0.003 + obs.userData.bobOffset;
+        obs.userData.sprite.position.y = 0.5 + Math.sin(t) * 0.08;
+      }
+
       // Animate toaster shooting toast
       if (obs.userData.type === 'toaster' && !obs.userData.triggered) {
         const dx = player.position.x - obs.position.x;

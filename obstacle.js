@@ -378,19 +378,50 @@ function createWaterBalloon() {
   return group;
 }
 
+var ibm360TextureLoader = new THREE.TextureLoader();
+var ibm360Texture = null;
+
+function createDrill() {
+  const group = new THREE.Group();
+  group.userData.type = 'drill';
+  group.userData.collisionHalfW = 0.4;
+  group.userData.collisionHalfH = 0.5;
+  group.userData.bobOffset = Math.random() * Math.PI * 2;
+
+  if (!ibm360Texture) {
+    ibm360Texture = ibm360TextureLoader.load('./assets/ibm-360.png');
+  }
+  const spriteMat = new THREE.SpriteMaterial({
+    map: ibm360Texture,
+    transparent: true,
+    opacity: 1,
+  });
+  const sprite = new THREE.Sprite(spriteMat);
+  const scale = 2.0 * gameScale.factor;
+  sprite.scale.set(scale, scale, scale);
+  sprite.position.y = 0.5;
+  group.add(sprite);
+  group.userData.sprite = sprite;
+
+  group.userData.points = 5;
+  group.userData.difficulty = 'hard';
+  return group;
+}
+
 function createObstacle() {
   const rand = Math.random();
   let obstacle;
   let yPos = 0.35;
-  const spaceshipChance = Math.min(0.2 + (state.difficultyLevel * 0.012), 0.28);
-  const tomatoChance = Math.min(0.18 + (state.difficultyLevel * 0.01), 0.25);
-  const waterChance = 0.08;
+  const spaceshipChance = Math.min(0.20 + (state.difficultyLevel * 0.012), 0.28);
+  const tomatoChance = Math.min(0.16 + (state.difficultyLevel * 0.01), 0.22);
+  const waterChance = 0.07;
   const wireChance = 0.06;
-  const droneChance = 0.08;
+  const droneChance = 0.07;
   const magnetChance = 0.06;
-  const toasterChance = 0.07;
+  const toasterChance = 0.06;
   const watermelonChance = 0.06;
-  const balloonChance = 0.08;
+  const balloonChance = 0.07;
+  const drillChance = 0.06;
   let cumulative = 0;
   cumulative += spaceshipChance;
   if (rand < cumulative) {
@@ -455,10 +486,18 @@ function createObstacle() {
                     obstacle.userData.points = 1;
                     obstacle.userData.difficulty = 'easy';
                   } else {
-                    obstacle = createDog();
-                    yPos = 0.9;
-                    obstacle.userData.points = 1;
-                    obstacle.userData.difficulty = 'easy';
+                    cumulative += drillChance;
+                    if (rand < cumulative) {
+                      obstacle = createDrill();
+                      yPos = 1.18;
+                      obstacle.userData.points = 5;
+                      obstacle.userData.difficulty = 'hard';
+                    } else {
+                      obstacle = createDog();
+                      yPos = 0.9;
+                      obstacle.userData.points = 1;
+                      obstacle.userData.difficulty = 'easy';
+                    }
                   }
                 }
               }
