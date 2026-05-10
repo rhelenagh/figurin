@@ -272,6 +272,7 @@ button:active {
 
 #restart-btn:hover {
   background: #ff4444;
+  color: #0a0a0f;
   box-shadow: 0 0 30px #ff444466;
 }
 
