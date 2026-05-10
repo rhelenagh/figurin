@@ -1213,7 +1213,7 @@ function startGame() {
   resetGame();
   state.screen = 'playing';
   showScreen('hud');
-  if (audioCtx.state === 'suspended') audioCtx.resume();
+  resumeAudioContext();
   startBgm();
 }
 
