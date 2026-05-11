@@ -18,7 +18,7 @@ python3 -m http.server 3000    # starts local server
 - `style.css` — all UI styling (dark neon theme, screen animations)
 - `three-setup.js` — Three.js initialization: scene, camera, renderer, player, ground, stars, responsive helpers (exports via global `var`/`function`)
 - `audio.js` — Web Audio API system: sound effects (jump, score, powerup, death) and background music (chiptune style) (exports via `window.audioExport`)
-- `obstacle.js` — all obstacle factory functions: dog, spaceship, tomato, water puddle, oil puddle, live wire, drone, magnet, toaster, watermelon, water balloon, drill/IBM-360 (exports via global `function`)
+- `obstacle.js` — all obstacle factory functions: dog, spaceship, tomato, water puddle, oil puddle, live wire, drone, magnet, toaster, watermelon, water balloon, drill/IBM-360, marcosguerra (exports via global `function`)
 - `game.js` — game loop, state management, input handling, particles, collision detection, powerups
 
 ## File Responsibilities
@@ -55,6 +55,7 @@ Exports via global `function`:
 - `createWatermelon()` — green striped sphere (rolling)
 - `createWaterBalloon()` — falling water balloon
 - `createDrill()` — sprite-based IBM-360 (ibm-360.png), high obstacle, 5 points, hard difficulty
+- `createMarcosGuerra()` — sprite-based marcosguerra.png, gentle bob, 1 point, easy difficulty
 - `createObstacle()` — factory that randomly selects obstacle type
 
 ### audio.js

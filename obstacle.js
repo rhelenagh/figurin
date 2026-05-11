@@ -24,6 +24,31 @@ function createDog() {
   return group;
 }
 
+var marcosLoader = new THREE.TextureLoader();
+var marcosTexture = null;
+
+function createMarcosGuerra() {
+  const group = new THREE.Group();
+  group.userData.type = 'marcosguerra';
+  group.userData.collisionHalfW = 0.35;
+  group.userData.collisionHalfH = 0.45;
+  if (!marcosTexture) {
+    marcosTexture = marcosLoader.load('./assets/marcosguerra.png');
+  }
+  const spriteMat = new THREE.SpriteMaterial({
+    map: marcosTexture,
+    transparent: true,
+    opacity: 1,
+  });
+  const sprite = new THREE.Sprite(spriteMat);
+  const scale = 1.4 * gameScale.factor;
+  sprite.scale.set(scale, scale * 1.2, 1);
+  sprite.position.y = 0.5;
+  group.add(sprite);
+  group.userData.sprite = sprite;
+  return group;
+}
+
 function createSpaceship() {
   const group = new THREE.Group();
   group.userData.collisionHalfW = 0.35;
@@ -422,6 +447,7 @@ function createObstacle() {
   const watermelonChance = 0.06;
   const balloonChance = 0.07;
   const drillChance = 0.06;
+  const marcosChance = 0.07;
   let cumulative = 0;
   cumulative += spaceshipChance;
   if (rand < cumulative) {
@@ -493,10 +519,18 @@ function createObstacle() {
                       obstacle.userData.points = 5;
                       obstacle.userData.difficulty = 'hard';
                     } else {
-                      obstacle = createDog();
-                      yPos = 0.9;
-                      obstacle.userData.points = 1;
-                      obstacle.userData.difficulty = 'easy';
+                      cumulative += marcosChance;
+                      if (rand < cumulative) {
+                        obstacle = createMarcosGuerra();
+                        yPos = 1.2;
+                        obstacle.userData.points = 1;
+                        obstacle.userData.difficulty = 'easy';
+                      } else {
+                        obstacle = createDog();
+                        yPos = 0.9;
+                        obstacle.userData.points = 1;
+                        obstacle.userData.difficulty = 'easy';
+                      }
                     }
                   }
                 }

@@ -799,6 +799,12 @@ function animate() {
         obs.userData.sprite.position.y = 0.5 + Math.sin(t) * 0.08;
       }
 
+      // Animate marcosguerra bob
+      if (obs.userData.type === 'marcosguerra' && obs.userData.sprite) {
+        const t = Date.now() * 0.01 + i;
+        obs.userData.sprite.position.y = 0.1 + Math.sin(t * 2) * 0.06;
+      }
+
       // Animate toaster shooting toast
       if (obs.userData.type === 'toaster' && !obs.userData.triggered) {
         const dx = player.position.x - obs.position.x;
@@ -838,6 +844,12 @@ function animate() {
           }
         } else if (obs.userData.type === 'dog') {
           spawnFloatingText("I've got you!", player.position.clone(), 0xff00ff);
+          spawnParticles(player.position.clone(), 0xff00ff, 25);
+          triggerShake(10);
+          gameOver();
+          break;
+        } else if (obs.userData.type === 'marcosguerra') {
+          spawnFloatingText("Peralta", player.position.clone(), 0xff00ff);
           spawnParticles(player.position.clone(), 0xff00ff, 25);
           triggerShake(10);
           gameOver();
