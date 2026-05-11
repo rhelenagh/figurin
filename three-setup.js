@@ -181,7 +181,34 @@ var rightArm = new THREE.Mesh(armGeom, armMat);
 rightArm.position.set(0, -0.14, 0);
 rightPivot.add(rightArm);
 player.add(rightPivot);
-player.userData = { sprite: playerSprite, leftArm: leftPivot, rightArm: rightPivot };
+
+// Aura sprite — radial glow for jump / double jump
+function createAuraTexture() {
+  var c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 128;
+  var ctx = c.getContext('2d');
+  var gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gradient.addColorStop(0, 'rgba(0, 255, 204, 0)');
+  gradient.addColorStop(0.5, 'rgba(0, 255, 204, 0.15)');
+  gradient.addColorStop(0.8, 'rgba(0, 255, 204, 0.3)');
+  gradient.addColorStop(1, 'rgba(0, 255, 204, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+var auraSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: createAuraTexture(),
+  transparent: true,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+  opacity: 0,
+}));
+auraSprite.scale.setScalar(2 * gameScale.factor);
+auraSprite.position.y = 0.9 * gameScale.factor;
+player.add(auraSprite);
+
+player.userData = { sprite: playerSprite, leftArm: leftPivot, rightArm: rightPivot, aura: auraSprite };
 
 scene.add(player);
 
@@ -201,17 +228,12 @@ scene.add(ground);
 
 // Ground line (neon strip)
 var lineGeometry = new THREE.BoxGeometry(30, 0.02, 0.02);
-var lineMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
+var lineMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.8 });
 var groundLine = new THREE.Mesh(lineGeometry, lineMaterial);
 groundLine.position.set(0, 0.01, 0);
 scene.add(groundLine);
 
-// Background grid
-var gridHelper = new THREE.GridHelper(20, 40, 0x00ffcc, 0x00ffcc);
-gridHelper.position.y = -0.01;
-gridHelper.material.transparent = true;
-gridHelper.material.opacity = 0.1;
-scene.add(gridHelper);
+
 
 // Stars
 var starsGeometry = new THREE.BufferGeometry();

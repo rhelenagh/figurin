@@ -27,8 +27,9 @@ python3 -m http.server 3000    # starts local server
 Exports via global `var`/`function`:
 - `scene`, `camera`, `renderer` — Three.js core
 - `player`, `playerSprite`, `playerLight` — player group and sprite; 3D arms (`leftPivot`/`rightPivot`) on player for jump animation
+- `auraSprite` — radial glow sprite (additive blending) for jump/double-jump visual, added as child of player
 - `gameScale` — responsive scale object (`{ factor: <number> }`)
-- `gridHelper`, `ground`, `groundLine` — ground elements
+- `ground`, `groundLine` — ground elements
 - `stars` — starfield (100 points)
 - `city` — 12-building skyline with emissive windows
 - `clouds` — 5 glowing cloud sprites with additive blending, horizontal drift
@@ -37,6 +38,7 @@ Exports via global `var`/`function`:
 - `getPlayerBaseX()` — player X position by viewport
 - `getObstacleSpawnX()` — spawn position by viewport
 - `createPlayerTexture()` — generates player sprite canvas (glowing neon character)
+- `createAuraTexture()` — generates radial gradient canvas texture for aura sprite
 - `roundRect()` — canvas rounded rectangle helper
 
 ### obstacle.js

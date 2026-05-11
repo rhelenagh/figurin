@@ -144,14 +144,25 @@ function applyPowerup(type) {
 }
 
 function updatePowerups() {
+  var time = Date.now();
   // Powerup rotation and movement
   for (let i = state.powerups.length - 1; i >= 0; i--) {
     const p = state.powerups[i];
     p.rotation.y += p.userData.rotationSpeed;
+    p.rotation.x += Math.sin(time * 0.003 + i) * 0.002;
     p.position.x -= state.speed;
     
     // Bob effect
-    p.position.y += Math.sin(Date.now() * 0.005 + i) * 0.003;
+    p.position.y += Math.sin(time * 0.005 + i * 2) * 0.003;
+    
+    // Pulsating glow
+    var pulse = 0.6 + Math.sin(time * 0.006 + i) * 0.4;
+    if (p.children[0] && p.children[0].material) {
+      p.children[0].material.emissiveIntensity = pulse;
+    }
+    if (p.children[1] && p.children[1].material) {
+      p.children[1].material.opacity = 0.4 + Math.sin(time * 0.008 + i) * 0.3;
+    }
     
     // Collision with player
     const dx = Math.abs(p.position.x - player.position.x);
@@ -191,36 +202,85 @@ function updatePowerups() {
   }
   
   // Shield visual
-  if (state.activePowerups.shield) {
-    player.userData.sprite.material.opacity = 0.5 + Math.sin(Date.now() * 0.01) * 0.2;
-  } else {
-    player.userData.sprite.material.opacity = 1;
+  if (player.userData.sprite) {
+    if (state.activePowerups.shield) {
+      player.userData.sprite.material.opacity = 0.6 + Math.sin(time * 0.01) * 0.2;
+    } else {
+      player.userData.sprite.material.opacity = 1;
+    }
   }
 }
 
 // Particles
 const particles = [];
 
-function spawnParticles(position, color, count = 10) {
+var particleGeoms = [
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.SphereGeometry(0.5, 4, 4),
+  new THREE.TetrahedronGeometry(0.6, 0),
+];
+
+function spawnParticles(position, color, count = 10, speedMul = 1) {
   for (let i = 0; i < count; i++) {
-    const size = 0.05 + Math.random() * 0.1;
-    const geometry = new THREE.BoxGeometry(size, size, size);
+    const g = particleGeoms[i % 3].clone();
+    const s = (0.04 + Math.random() * 0.08) * gameScale.factor;
+    g.scale(s, s, s);
     const material = new THREE.MeshBasicMaterial({
       color,
       transparent: true,
       opacity: 1,
     });
-    const particle = new THREE.Mesh(geometry, material);
+    const particle = new THREE.Mesh(g, material);
     particle.position.copy(position);
+    particle.position.x += (Math.random() - 0.5) * 0.1;
     particle.velocity = new THREE.Vector3(
-      (Math.random() - 0.5) * 0.2,
-      Math.random() * 0.2,
-      (Math.random() - 0.5) * 0.2
+      (Math.random() - 0.5) * 0.25 * speedMul,
+      Math.random() * 0.25 * speedMul,
+      (Math.random() - 0.5) * 0.25 * speedMul
     );
-    particle.life = 1;
-    particle.decay = 0.02 + Math.random() * 0.02;
+    particle.life = 0.8 + Math.random() * 0.4;
+    particle.decay = 0.015 + Math.random() * 0.02;
+    particle.rotationSpeed = (Math.random() - 0.5) * 0.1;
     scene.add(particle);
     particles.push(particle);
+  }
+  // Sparkle sub-particles (tiny white dots)
+  for (let i = 0; i < count / 2; i++) {
+    const g = new THREE.BoxGeometry(0.02, 0.02, 0.02);
+    const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+    const p = new THREE.Mesh(g, m);
+    p.position.copy(position);
+    p.position.x += (Math.random() - 0.5) * 0.2;
+    p.velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.35 * speedMul,
+      Math.random() * 0.35 * speedMul,
+      (Math.random() - 0.5) * 0.2 * speedMul
+    );
+    p.life = 0.4;
+    p.decay = 0.04;
+    p.rotationSpeed = 0;
+    scene.add(p);
+    particles.push(p);
+  }
+}
+
+function spawnScoreParticles(position, color, count = 15) {
+  // Ring burst
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    const radius = 0.15 + Math.random() * 0.1;
+    const g = particleGeoms[i % 3].clone();
+    const s = (0.03 + Math.random() * 0.06) * gameScale.factor;
+    g.scale(s, s, s);
+    const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 });
+    const p = new THREE.Mesh(g, m);
+    p.position.copy(position);
+    p.velocity = new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, (Math.random() - 0.5) * 0.1);
+    p.life = 0.6 + Math.random() * 0.3;
+    p.decay = 0.02;
+    p.rotationSpeed = (Math.random() - 0.5) * 0.15;
+    scene.add(p);
+    particles.push(p);
   }
 }
 
@@ -230,8 +290,9 @@ function updateParticles() {
     p.position.add(p.velocity);
     p.velocity.y -= 0.005;
     p.life -= p.decay;
-    p.material.opacity = p.life;
-    p.scale.multiplyScalar(0.98);
+    p.material.opacity = Math.max(0, p.life);
+    p.scale.multiplyScalar(0.97);
+    if (p.rotationSpeed) p.rotation.x += p.rotationSpeed;
 
     if (p.life <= 0) {
       scene.remove(p);
@@ -245,25 +306,30 @@ function updateParticles() {
 // Trail particles (behind player)
 let trailTimer = 0;
 function spawnTrail() {
-  if (trailTimer++ % 3 === 0) {
-    const size = 0.04;
-    const geometry = new THREE.BoxGeometry(size, size, size);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0x00ffcc,
-      transparent: true,
-      opacity: 0.6,
-    });
-    const particle = new THREE.Mesh(geometry, material);
-    particle.position.set(
-      player.position.x - 0.3,
-      player.position.y + (Math.random() - 0.5) * 0.3,
-      (Math.random() - 0.5) * 0.3
-    );
-    particle.velocity = new THREE.Vector3(-0.05, 0, 0);
-    particle.life = 0.5;
-    particle.decay = 0.02;
-    scene.add(particle);
-    particles.push(particle);
+  if (trailTimer++ % 2 === 0) {
+    const count = state.isJumping ? 2 : 1;
+    for (let j = 0; j < count; j++) {
+      const color = j === 0 ? 0x00ffcc : (state.isJumping ? 0xff00ff : 0x44ffaa);
+      const size = 0.03 + Math.random() * 0.03;
+      const geom = new THREE.BoxGeometry(size, size, size);
+      const mat = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.5,
+      });
+      const particle = new THREE.Mesh(geom, mat);
+      particle.position.set(
+        player.position.x - 0.3 - Math.random() * 0.2,
+        player.position.y + (Math.random() - 0.5) * 0.4,
+        (Math.random() - 0.5) * 0.4
+      );
+      particle.velocity = new THREE.Vector3(-0.03 - Math.random() * 0.03, (Math.random() - 0.5) * 0.01, 0);
+      particle.life = 0.4 + Math.random() * 0.3;
+      particle.decay = 0.015 + Math.random() * 0.01;
+      particle.rotationSpeed = (Math.random() - 0.5) * 0.08;
+      scene.add(particle);
+      particles.push(particle);
+    }
   }
 }
 
@@ -375,7 +441,8 @@ function jump(isDoubleTap = false) {
     state.hasUsedDoubleJump = true;
     state.jumpVelocity = state.doubleJumpForce;
     playSound('jump');
-    spawnParticles(player.position.clone().add(new THREE.Vector3(0, 0.3, 0)), 0xff00ff, 12);
+    spawnParticles(player.position.clone().add(new THREE.Vector3(0, 0.3, 0)), 0xff00ff, 12, 1.5);
+    spawnScoreParticles(player.position.clone().add(new THREE.Vector3(0, 0.3, 0)), 0xff00ff, 10);
     triggerShake(4);
     
     // Visual spin effect
@@ -432,6 +499,10 @@ function resetGame() {
   state.magnetPolarity = null;
   state.gravity = -0.012;
   state.jumpForce = 0.25;
+
+  // Reset aura visual
+  if (player.userData.aura) player.userData.aura.material.opacity = 0;
+  if (player.userData.sprite) player.userData.sprite.material.opacity = 1;
 
   updateScoreDisplay();
 }
@@ -627,6 +698,14 @@ function animate() {
       player.userData.sprite.position.y = (0.9 * gameScale.factor) + Math.sin(Date.now() * 0.008) * 0.02;
     }
 
+    // Jump aura glow
+    if (player.userData.aura) {
+      var targetAura = state.isJumping ? (state.hasUsedDoubleJump ? 0.6 : 0.3) : 0;
+      player.userData.aura.material.opacity += (targetAura - player.userData.aura.material.opacity) * 0.08;
+      var auraScale = (2 + (state.isJumping ? Math.sin(Date.now() * 0.01) * 0.3 : 0)) * gameScale.factor;
+      player.userData.aura.scale.setScalar(auraScale);
+    }
+
     // Arm animation — raise on jump
     if (player.userData.leftArm) {
       var targetArmAngle = state.isJumping ? -1.2 : 0.1;
@@ -804,7 +883,7 @@ function animate() {
         // Visual feedback based on difficulty
         const feedbackColor = obs.userData.difficulty === 'hard' ? 0xff00ff : 
                               obs.userData.difficulty === 'medium' ? 0xffaa00 : 0x00ffcc;
-        spawnParticles(obs.position.clone(), feedbackColor, 8 + (obs.userData.points * 3));
+        spawnScoreParticles(obs.position.clone(), feedbackColor, 6 + (obs.userData.points * 3));
         
         if (player.userData.sprite) {
           const scale = (1.2 + (obs.userData.points * 0.1)) * gameScale.factor;
@@ -837,8 +916,13 @@ function animate() {
       player.userData.sprite.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
     }
 
-    // Grid movement effect
-    gridHelper.position.x = (gridHelper.position.x - state.speed) % 0.5;
+    // Ground line pulse on score/combo
+    if (scored || state.combo > 2) {
+      groundLine.material.color.setHex(state.combo > 5 ? 0xff00ff : 0x00ffcc);
+    } else {
+      groundLine.material.color.setHex(0x00ffcc);
+    }
+    groundLine.material.opacity = 0.5 + Math.sin(Date.now() * 0.006) * 0.3 + (state.combo > 2 ? 0.3 : 0);
 
     // Update particles
     updateParticles();
@@ -854,7 +938,7 @@ function animate() {
   updateFloatingTexts();
 
   // Animate stars
-  stars.rotation.y += 0.0001;
+  if (stars) stars.rotation.y += 0.0001;
 
   // Animate clouds — horizontal drift
   for (var ci = 0; ci < clouds.length; ci++) {
