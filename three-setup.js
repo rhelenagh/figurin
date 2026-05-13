@@ -37,8 +37,8 @@ function getPlayerBaseX() {
   const isPortrait = height > width;
   
   if (isPortrait) {
-    if (width <= 400) return -2.0;
-    if (width <= 480) return -2.2;
+    if (width <= 412) return -1.4;
+    if (width <= 480) return -2.0;
     return -2.5;
   } else {
     if (width <= 480) return -3.5;

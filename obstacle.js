@@ -422,7 +422,7 @@ function createDrill() {
     opacity: 1,
   });
   const sprite = new THREE.Sprite(spriteMat);
-  const scale = 2.0 * gameScale.factor;
+  const scale = 1.4 * gameScale.factor;
   sprite.scale.set(scale, scale, scale);
   sprite.position.y = 0.5;
   group.add(sprite);
