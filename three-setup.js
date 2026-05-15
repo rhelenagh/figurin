@@ -208,7 +208,20 @@ auraSprite.scale.setScalar(2 * gameScale.factor);
 auraSprite.position.y = 0.9 * gameScale.factor;
 player.add(auraSprite);
 
-player.userData = { sprite: playerSprite, leftArm: leftPivot, rightArm: rightPivot, aura: auraSprite };
+// Shield shell (wireframe, hidden by default)
+var shieldShellGeom = new THREE.IcosahedronGeometry(0.8, 1);
+var shieldShellMat = new THREE.MeshBasicMaterial({
+  color: 0x00ffff,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.15,
+});
+var shieldShell = new THREE.Mesh(shieldShellGeom, shieldShellMat);
+shieldShell.position.y = 0.5;
+shieldShell.visible = false;
+player.add(shieldShell);
+
+player.userData = { sprite: playerSprite, leftArm: leftPivot, rightArm: rightPivot, aura: auraSprite, shieldShell: shieldShell };
 
 scene.add(player);
 

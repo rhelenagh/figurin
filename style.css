@@ -103,6 +103,36 @@ body {
   to { transform: scale(1.05); opacity: 1; }
 }
 
+#combo-display {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 20px;
+  font-weight: 900;
+  background: #ffaa0022;
+  border: 1px solid currentColor;
+  text-shadow: 0 0 15px currentColor;
+  pointer-events: none;
+  animation: powerup-pulse 0.3s ease-in-out infinite alternate;
+}
+
+#doublejump-indicator {
+  position: absolute;
+  top: 70px;
+  right: 20px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #ff00ff44;
+  color: #ff00ff;
+  border: 1px solid #ff00ff;
+  animation: powerup-pulse 0.4s ease-in-out infinite alternate;
+}
+
 /* Menu Screen */
 #menu-screen {
   text-align: center;

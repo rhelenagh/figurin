@@ -28,6 +28,7 @@ Exports via global `var`/`function`:
 - `scene`, `camera`, `renderer` — Three.js core
 - `player`, `playerSprite`, `playerLight` — player group and sprite; 3D arms (`leftPivot`/`rightPivot`) on player for jump animation
 - `auraSprite` — radial glow sprite (additive blending) for jump/double-jump visual, added as child of player
+- `shieldShell` — wireframe icosahedron mesh (hidden by default) for shield powerup visual
 - `gameScale` — responsive scale object (`{ factor: <number> }`)
 - `ground`, `groundLine` — ground elements
 - `stars` — starfield (100 points)
@@ -35,7 +36,7 @@ Exports via global `var`/`function`:
 - `clouds` — 5 glowing cloud sprites with additive blending, horizontal drift
 - `ambientLights` — 3 colored orbiting point lights
 - `getScaleFactor()` — responsive scale calculation (portrait/landscape)
-- `getPlayerBaseX()` — player X position by viewport
+- `getPlayerBaseX()` — player X position by viewport (portrait ≤ 412px → -1.4)
 - `getObstacleSpawnX()` — spawn position by viewport
 - `createPlayerTexture()` — generates player sprite canvas (glowing neon character)
 - `createAuraTexture()` — generates radial gradient canvas texture for aura sprite
@@ -54,8 +55,8 @@ Exports via global `function`:
 - `createToaster()` — metallic box with eyes
 - `createWatermelon()` — green striped sphere (rolling)
 - `createWaterBalloon()` — falling water balloon
-- `createDrill()` — sprite-based IBM-360 (ibm-360.png), high obstacle, 5 points, hard difficulty
-- `createMarcosGuerra()` — sprite-based marcosguerra.png, gentle bob, 1 point, easy difficulty
+- `createDrill()` — sprite-based IBM-360 (ibm-360.png), high obstacle, 5 points, hard difficulty, scale 1.4×
+- `createMarcosGuerra()` — plane mesh with marcosguerra.png (luminance keying to remove dark borders), Y-axis rotation, 1 point, easy difficulty
 - `createObstacle()` — factory that randomly selects obstacle type
 
 ### audio.js
@@ -73,9 +74,15 @@ Sound types: `jump`, `score`, `powerup`, `death`
 - Input handling: keyboard (Space), touch, mouse
 - Game loop: physics, collision, spawning, scoring
 - Particles system, floating text, trail effects
-- Collision detection with obstacle-specific effects
+- Collision detection with obstacle-specific effects ("Peralta" for marcosguerra)
 - Powerup system (shield, slowmo, multiplier, bonus)
 - `obstacles` array — obstacle lifecycle management
+- Combo system (HUD counter, ground line pulse, milestone particles at x5)
+- Double jump HUD indicator ("▲▲ JUMP")
+- Obstacle entry animation (scale fade-in over 15 frames)
+- Parallax city scroll, speed-tied star rotation and cloud drift
+- Broken mechanics fixes: magnet collision (sets gravity effect), wire spark toggle, drone float bob
+- Powerup shapes: shield=Icosahedron, slowmo=Cylinder, multiplier=Torus, bonus=Octahedron
 
 ## State Object
 

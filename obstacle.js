@@ -24,28 +24,42 @@ function createDog() {
   return group;
 }
 
-var marcosLoader = new THREE.TextureLoader();
-var marcosTexture = null;
+var marcosCanvas = document.createElement('canvas');
+var marcosTexture = new THREE.CanvasTexture(marcosCanvas);
+var marcosImg = new Image();
+marcosImg.onload = function() {
+  marcosCanvas.width = marcosImg.width;
+  marcosCanvas.height = marcosImg.height;
+  var ctx = marcosCanvas.getContext('2d');
+  ctx.drawImage(marcosImg, 0, 0);
+  var imageData = ctx.getImageData(0, 0, marcosCanvas.width, marcosCanvas.height);
+  var data = imageData.data;
+  for (var i = 0; i < data.length; i += 4) {
+    if ((data[i] + data[i + 1] + data[i + 2]) / 3 < 80) {
+      data[i + 3] = 0;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+  marcosTexture.needsUpdate = true;
+};
+marcosImg.src = './assets/marcosguerra.png';
 
 function createMarcosGuerra() {
   const group = new THREE.Group();
   group.userData.type = 'marcosguerra';
-  group.userData.collisionHalfW = 0.35;
-  group.userData.collisionHalfH = 0.45;
-  if (!marcosTexture) {
-    marcosTexture = marcosLoader.load('./assets/marcosguerra.png');
-  }
-  const spriteMat = new THREE.SpriteMaterial({
+  group.userData.collisionHalfW = 0.4;
+  group.userData.collisionHalfH = 0.55;
+  var geom = new THREE.PlaneGeometry(1.0 * gameScale.factor, 1.2 * gameScale.factor);
+  var mat = new THREE.MeshBasicMaterial({
     map: marcosTexture,
     transparent: true,
     opacity: 1,
+    side: THREE.DoubleSide,
   });
-  const sprite = new THREE.Sprite(spriteMat);
-  const scale = 1.4 * gameScale.factor;
-  sprite.scale.set(scale, scale * 1.2, 1);
-  sprite.position.y = 0.5;
-  group.add(sprite);
-  group.userData.sprite = sprite;
+  var mesh = new THREE.Mesh(geom, mat);
+  mesh.position.y = 0.6;
+  group.add(mesh);
+  group.userData.mesh = mesh;
   return group;
 }
 

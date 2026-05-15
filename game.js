@@ -51,27 +51,34 @@ function createPowerup() {
   group.userData.type = 'powerup';
   group.userData.powerupType = type;
   
-  let color, emissiveColor;
+  let color, emissiveColor, outerGeom, innerGeom;
   switch (type) {
     case 'shield':
       color = 0x00ffff;
       emissiveColor = 0x00ffff;
+      outerGeom = new THREE.IcosahedronGeometry(0.25, 0);
+      innerGeom = new THREE.IcosahedronGeometry(0.15, 0);
       break;
     case 'slowmo':
       color = 0x9966ff;
       emissiveColor = 0x9966ff;
+      outerGeom = new THREE.CylinderGeometry(0.1, 0.1, 0.4, 6);
+      innerGeom = new THREE.CylinderGeometry(0.06, 0.06, 0.3, 6);
       break;
     case 'multiplier':
       color = 0xffaa00;
       emissiveColor = 0xffaa00;
+      outerGeom = new THREE.TorusGeometry(0.2, 0.06, 8, 12);
+      innerGeom = new THREE.TorusGeometry(0.13, 0.04, 8, 12);
       break;
     case 'bonus':
       color = 0x00ff66;
       emissiveColor = 0x00ff66;
+      outerGeom = new THREE.OctahedronGeometry(0.25, 0);
+      innerGeom = new THREE.OctahedronGeometry(0.15, 0);
       break;
   }
   
-  const geom = new THREE.OctahedronGeometry(0.25, 0);
   const mat = new THREE.MeshStandardMaterial({
     color,
     emissive: emissiveColor,
@@ -79,11 +86,10 @@ function createPowerup() {
     transparent: true,
     opacity: 0.9,
   });
-  const mesh = new THREE.Mesh(geom, mat);
+  const mesh = new THREE.Mesh(outerGeom, mat);
   group.add(mesh);
   
   // Inner glow
-  const innerGeom = new THREE.OctahedronGeometry(0.15, 0);
   const innerMat = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     transparent: true,
@@ -152,8 +158,10 @@ function updatePowerups() {
     p.rotation.x += Math.sin(time * 0.003 + i) * 0.002;
     p.position.x -= state.speed;
     
-    // Bob effect
-    p.position.y += Math.sin(time * 0.005 + i * 2) * 0.003;
+    // Wave trajectory
+    p.position.y = (p.userData.baseY || p.position.y) + Math.sin(time * 0.005 + i * 2) * 0.15;
+    if (!p.userData.baseY) p.userData.baseY = p.position.y;
+    p.position.z = Math.sin(time * 0.004 + i) * 0.2;
     
     // Pulsating glow
     var pulse = 0.6 + Math.sin(time * 0.006 + i) * 0.4;
@@ -205,8 +213,15 @@ function updatePowerups() {
   if (player.userData.sprite) {
     if (state.activePowerups.shield) {
       player.userData.sprite.material.opacity = 0.6 + Math.sin(time * 0.01) * 0.2;
+      if (player.userData.shieldShell) {
+        player.userData.shieldShell.visible = true;
+        player.userData.shieldShell.material.opacity = 0.1 + Math.sin(time * 0.008) * 0.05;
+        player.userData.shieldShell.rotation.y += 0.02;
+        player.userData.shieldShell.rotation.x += 0.01;
+      }
     } else {
       player.userData.sprite.material.opacity = 1;
+      if (player.userData.shieldShell) player.userData.shieldShell.visible = false;
     }
   }
 }
@@ -629,23 +644,25 @@ document.getElementById('sound-toggle').addEventListener('click', () => {
 });
 
 // Resize handler
-window.addEventListener('resize', () => {
+function updateScale() {
   gameScale.factor = getScaleFactor();
   player.position.x = getPlayerBaseX();
+  if (playerSprite) {
+    var s = 1.8 * gameScale.factor;
+    playerSprite.scale.set(s, s, s);
+    playerSprite.position.y = 0.9 * gameScale.factor;
+  }
+  if (auraSprite) {
+    auraSprite.scale.setScalar(2 * gameScale.factor);
+    auraSprite.position.y = 0.9 * gameScale.factor;
+  }
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-});
+}
 
-window.addEventListener('orientationchange', () => {
-  setTimeout(() => {
-    gameScale.factor = getScaleFactor();
-    player.position.x = getPlayerBaseX();
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  }, 100);
-});
+window.addEventListener('resize', updateScale);
+window.addEventListener('orientationchange', () => setTimeout(updateScale, 100));
 
 // Update best score display on load
 document.getElementById('best-score-display').textContent = `Best: ${state.bestScore}`;
@@ -706,6 +723,19 @@ function animate() {
       player.userData.aura.scale.setScalar(auraScale);
     }
 
+    // Double jump indicator
+    var djIndicator = document.getElementById('doublejump-indicator');
+    if (state.canDoubleJump && !state.hasUsedDoubleJump) {
+      if (!djIndicator) {
+        djIndicator = document.createElement('div');
+        djIndicator.id = 'doublejump-indicator';
+        djIndicator.textContent = '▲▲ JUMP';
+        document.getElementById('hud').appendChild(djIndicator);
+      }
+    } else {
+      if (djIndicator) djIndicator.remove();
+    }
+
     // Arm animation — raise on jump
     if (player.userData.leftArm) {
       var targetArmAngle = state.isJumping ? -1.2 : 0.1;
@@ -764,6 +794,18 @@ function animate() {
       obs.position.x -= obstacleSpeed;
       obs.rotation.y += 0.03;
 
+      // Entry animation — scale from 0 on spawn
+      if (obs.userData.entryTimer === undefined) {
+        obs.userData.entryTimer = 0;
+        obs.scale.set(0.01, 0.01, 0.01);
+      }
+      if (obs.userData.entryTimer < 15) {
+        obs.userData.entryTimer++;
+        var t = obs.userData.entryTimer / 15;
+        t = t * t * (3 - 2 * t);
+        obs.scale.set(t, t, t);
+      }
+
       // Animate dog obstacles
       if (obs.userData.type === 'dog') {
         const t = Date.now() * 0.01 + i;
@@ -777,6 +819,24 @@ function animate() {
         obs.userData.legBL.rotation.x = Math.sin(t + Math.PI) * 0.35;
         obs.userData.legBR.rotation.x = Math.sin(t) * 0.35;
         obs.userData.tail.rotation.y = Math.sin(t * 0.7) * 0.5;
+      }
+
+      // Animate wire spark toggle
+      if (obs.userData.type === 'wire') {
+        obs.userData.sparkTimer++;
+        if (obs.userData.sparkTimer > 30) {
+          obs.userData.sparkTimer = 0;
+          obs.userData.sparkOn = !obs.userData.sparkOn;
+          if (obs.userData.spark) obs.userData.spark.material.opacity = obs.userData.sparkOn ? 0.9 : 0;
+          if (obs.userData.sparkLight) obs.userData.sparkLight.intensity = obs.userData.sparkOn ? 1 : 0;
+        }
+      }
+
+      // Animate drone float
+      if (obs.userData.type === 'drone') {
+        if (obs.userData.floatBase === undefined) obs.userData.floatBase = obs.position.y;
+        const t = Date.now() * 0.005 + obs.userData.floatOffset;
+        obs.position.y = obs.userData.floatBase + Math.sin(t) * 0.08;
       }
 
       // Animate watermelon rolling
@@ -799,10 +859,9 @@ function animate() {
         obs.userData.sprite.position.y = 0.5 + Math.sin(t) * 0.08;
       }
 
-      // Animate marcosguerra bob
-      if (obs.userData.type === 'marcosguerra' && obs.userData.sprite) {
-        const t = Date.now() * 0.01 + i;
-        obs.userData.sprite.position.y = 0.1 + Math.sin(t * 2) * 0.06;
+      // Animate marcosguerra rotation
+      if (obs.userData.type === 'marcosguerra') {
+        obs.rotation.y += 0.025;
       }
 
       // Animate toaster shooting toast
@@ -841,6 +900,14 @@ function animate() {
             obs.collisionHandled = true;
             playSound('score');
             spawnParticles(obs.position.clone(), 0xff0000, 8);
+          }
+        } else if (obs.userData.type === 'magnet') {
+          if (!obs.collisionHandled) {
+            obs.collisionHandled = true;
+            state.magnetTimer = 120;
+            state.magnetPolarity = obs.userData.polarity;
+            playSound('powerup');
+            spawnParticles(obs.position.clone(), obs.userData.polarity === 'attract' ? 0xff4444 : 0x4444ff, 10);
           }
         } else if (obs.userData.type === 'dog') {
           spawnFloatingText("I've got you!", player.position.clone(), 0xff00ff);
@@ -910,12 +977,32 @@ function animate() {
       }
     }
 
+    // Combo milestone particles
+    if (scored && state.combo > 0 && state.combo % 5 === 0) {
+      spawnParticles(player.position.clone(), 0xff00ff, 20);
+      spawnScoreParticles(player.position.clone(), 0xff00ff, 15);
+    }
+
     // Update combo timer
     if (state.comboTimer > 0) {
       state.comboTimer--;
       if (state.comboTimer === 0) {
         state.combo = 0;
       }
+    }
+
+    // Combo counter HUD
+    var comboDisplay = document.getElementById('combo-display');
+    if (state.combo >= 3) {
+      if (!comboDisplay) {
+        comboDisplay = document.createElement('div');
+        comboDisplay.id = 'combo-display';
+        document.getElementById('hud').appendChild(comboDisplay);
+      }
+      comboDisplay.textContent = 'x' + state.combo + ' COMBO';
+      comboDisplay.style.color = state.combo > 5 ? '#ff00ff' : '#ffaa00';
+    } else {
+      if (comboDisplay) comboDisplay.remove();
     }
 
     if (scored) {
@@ -931,9 +1018,11 @@ function animate() {
     // Ground line pulse on score/combo
     if (scored || state.combo > 2) {
       groundLine.material.color.setHex(state.combo > 5 ? 0xff00ff : 0x00ffcc);
+      groundLine.scale.y = 2 + (state.combo > 5 ? 3 : 1);
     } else {
       groundLine.material.color.setHex(0x00ffcc);
     }
+    groundLine.scale.y += (1 - groundLine.scale.y) * 0.1;
     groundLine.material.opacity = 0.5 + Math.sin(Date.now() * 0.006) * 0.3 + (state.combo > 2 ? 0.3 : 0);
 
     // Update particles
@@ -944,18 +1033,22 @@ function animate() {
 
     // Camera shake
     updateCameraShake();
+
+    // Parallax city scroll
+    if (city) city.position.x -= state.speed * 0.08;
   }
 
   // Update floating texts (always, even after game over)
   updateFloatingTexts();
 
   // Animate stars
-  if (stars) stars.rotation.y += 0.0001;
+  if (stars) stars.rotation.y += state.speed * 0.0008;
 
-  // Animate clouds — horizontal drift
+  // Animate clouds — horizontal drift (tied to game speed)
+  var speedRatio = state.speed / state.baseSpeed;
   for (var ci = 0; ci < clouds.length; ci++) {
     var c = clouds[ci];
-    c.position.x += c.userData.speed * 0.5;
+    c.position.x += c.userData.speed * speedRatio;
     if (c.position.x > 10) {
       c.position.x = c.userData.baseX - 15;
     }

@@ -82,14 +82,20 @@ window.audioExport = {
   },
 
   stopBgm() {
+    if (!bgmPlaying) return;
     bgmPlaying = false;
-    bgmOscillators.forEach(osc => {
-      try { osc.stop(); } catch(e) {}
-    });
-    bgmOscillators = [];
     if (bgmGain) {
-      bgmGain.disconnect();
-      bgmGain = null;
+      bgmGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+      setTimeout(() => {
+        bgmOscillators.forEach(osc => {
+          try { osc.stop(); } catch(e) {}
+        });
+        bgmOscillators = [];
+        if (bgmGain) {
+          bgmGain.disconnect();
+          bgmGain = null;
+        }
+      }, 500);
     }
   },
 
