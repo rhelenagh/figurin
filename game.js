@@ -769,10 +769,11 @@ function animate() {
     if (state.obstacleTimer >= state.obstacleInterval) {
       createObstacle();
       state.obstacleTimer = 0;
-      
-      // Randomize next interval slightly
-      const variation = Math.floor(Math.random() * 10);
+      const variation = Math.floor(Math.random() * 10) - 5;
       state.obstacleInterval = Math.max(35, state.obstacleInterval + variation);
+      if (window.innerHeight > window.innerWidth) {
+        state.obstacleInterval += 20;
+      }
       
       // Powerup spawn chance increases with difficulty
       const powerupChance = 0.05 + (state.difficultyLevel * 0.02);

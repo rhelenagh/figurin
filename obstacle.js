@@ -436,7 +436,7 @@ function createDrill() {
     opacity: 1,
   });
   const sprite = new THREE.Sprite(spriteMat);
-  const scale = 1.4 * gameScale.factor;
+  const scale = 1.0 * gameScale.factor;
   sprite.scale.set(scale, scale, scale);
   sprite.position.y = 0.5;
   group.add(sprite);
@@ -529,14 +529,14 @@ function createObstacle() {
                     cumulative += drillChance;
                     if (rand < cumulative) {
                       obstacle = createDrill();
-                      yPos = 1.18;
+                      yPos = 0.40;
                       obstacle.userData.points = 5;
                       obstacle.userData.difficulty = 'hard';
                     } else {
                       cumulative += marcosChance;
                       if (rand < cumulative) {
                         obstacle = createMarcosGuerra();
-                        yPos = 1.2;
+                        yPos = 1.0;
                         obstacle.userData.points = 1;
                         obstacle.userData.difficulty = 'easy';
                       } else {
