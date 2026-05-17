@@ -15,7 +15,7 @@ const state = {
   groundY: 0,
   soundEnabled: true,
   obstacleTimer: 0,
-  obstacleInterval: 60,
+  obstacleInterval: 100,
   difficultyTimer: 0,
   difficultyLevel: 1,
   combo: 0,
@@ -40,6 +40,9 @@ const { playSound, startBgm, stopBgm, updateBgm, resumeAudioContext } = window.a
 
 
 const obstacles = [];
+
+// Delta time clock for FPS-independent physics
+const clock = new THREE.Clock();
 
 
 // Powerup types
@@ -154,9 +157,9 @@ function updatePowerups() {
   // Powerup rotation and movement
   for (let i = state.powerups.length - 1; i >= 0; i--) {
     const p = state.powerups[i];
-    p.rotation.y += p.userData.rotationSpeed;
-    p.rotation.x += Math.sin(time * 0.003 + i) * 0.002;
-    p.position.x -= state.speed;
+    p.rotation.y += p.userData.rotationSpeed * timeScale;
+    p.rotation.x += Math.sin(time * 0.003 + i) * 0.002 * timeScale;
+    p.position.x -= state.speed * timeScale;
     
     // Wave trajectory
     p.position.y = (p.userData.baseY || p.position.y) + Math.sin(time * 0.005 + i * 2) * 0.15;
@@ -433,7 +436,7 @@ function updateCameraShake() {
 
 
 // Game functions
-function jump(isDoubleTap = false) {
+function jump() {
   if (state.screen !== 'playing') return;
   
   // Double tap detection
@@ -442,6 +445,8 @@ function jump(isDoubleTap = false) {
     state.doubleTapBonus = true;
   }
   state.lastTapTime = now;
+
+  state.jumpHeld = true;
   
   if (!state.isJumping) {
     // First jump
@@ -465,6 +470,9 @@ function jump(isDoubleTap = false) {
       const spinScale = 1.2 * gameScale.factor;
       player.userData.sprite.scale.set(spinScale, spinScale, spinScale);
     }
+  } else {
+    // In air, can't jump — buffer it
+    state.jumpBufferTimer = 8;
   }
 }
 
@@ -484,7 +492,7 @@ function resetGame() {
   state.activePowerups = { shield: false, slowmo: false, multiplier: false };
   state.slowmoTimer = 0;
   state.multiplierTimer = 0;
-  player.position.y = 0;
+  player.position.y = state.groundY;
 
   // Remove obstacles
   obstacles.forEach(o => scene.remove(o));
@@ -673,17 +681,35 @@ let lastScored = 0;
 function animate() {
   requestAnimationFrame(animate);
 
+  const deltaTime = clock.getDelta();
+  const timeScale = deltaTime * 60; // Normalize to 60 FPS
+
   if (state.screen === 'playing') {
+    let scored = false; // bandera para saber si se puntuó este frame
+
+    // Jump buffer timer
+    if (state.jumpBufferTimer > 0) state.jumpBufferTimer--;
+
     // Player physics
     if (state.isJumping) {
-      state.jumpVelocity += state.gravity;
-      player.position.y += state.jumpVelocity;
+      state.jumpVelocity += state.gravity * timeScale;
+      player.position.y += state.jumpVelocity * timeScale;
 
-      if (player.position.y <= 0) {
-        player.position.y = 0;
-        state.isJumping = false;
-        state.jumpVelocity = 0;
-        spawnParticles(player.position.clone(), 0x00ffcc, 3);
+      if (player.position.y <= state.groundY) {
+        if (state.jumpBufferTimer > 0) {
+          state.jumpBufferTimer = 0;
+          state.isJumping = true;
+          state.jumpVelocity = state.jumpForce * timeScale;
+          state.canDoubleJump = true;
+          state.hasUsedDoubleJump = false;
+          playSound('jump');
+          spawnParticles(player.position.clone(), 0x00ffcc, 5);
+        } else {
+          player.position.y = state.groundY;
+          state.isJumping = false;
+          state.jumpVelocity = 0;
+          spawnParticles(player.position.clone(), 0x00ffcc, 3);
+        }
       }
     }
 
@@ -746,50 +772,61 @@ function animate() {
     // Trail
     spawnTrail();
 
-    // Obstacles
-    state.obstacleTimer++;
-    state.difficultyTimer++;
+    // Obstacle timer and difficulty
+state.obstacleTimer++;
+state.difficultyTimer++;
 
-    // Progressive difficulty curve
-    
-    // Difficulty increases every 10 seconds (600 frames)
-    if (state.difficultyTimer % 600 === 0) {
-      state.difficultyLevel++;
-      
-      // Speed increases - slower progression
-      const speedIncrease = 0.005 + (state.difficultyLevel * 0.001);
-      state.speed = Math.min(state.baseSpeed + (state.difficultyLevel * speedIncrease), 0.35);
-      
-      // Obstacle interval decreases - but not below threshold
-      const minInterval = Math.max(35, 70 - (state.difficultyLevel * 3));
-      state.obstacleInterval = Math.max(minInterval, state.obstacleInterval - 2);
-    }
+// Ensure lastObstacleSpawnTime exists
+if (state.lastObstacleSpawnTime === undefined) state.lastObstacleSpawnTime = 0;
 
-    // Spawn obstacles and powerups
-    if (state.obstacleTimer >= state.obstacleInterval) {
-      createObstacle();
-      state.obstacleTimer = 0;
-      const variation = Math.floor(Math.random() * 10) - 5;
-      state.obstacleInterval = Math.max(35, state.obstacleInterval + variation);
-      if (window.innerHeight > window.innerWidth) {
-        state.obstacleInterval += 20;
-      }
-      
-      // Powerup spawn chance increases with difficulty
-      const powerupChance = 0.05 + (state.difficultyLevel * 0.02);
-      if (Math.random() < powerupChance) {
-        createPowerup();
-      }
-    }
-    
-    // Update powerups
-    updatePowerups();
+// Difficulty increases every 10 seconds (600 frames)
+if (state.difficultyTimer % 600 === 0) {
+  state.difficultyLevel++;
+  // velocidad aumenta suavemente con la dificultad
+  const speedIncrease = 0.004 + (state.difficultyLevel * 0.0008);
+  state.speed = Math.min(state.baseSpeed + (state.difficultyLevel * speedIncrease), 0.35);
 
-    // Update obstacles
-    let scored = false;
+  // intervalo mínimo que puede alcanzar (más conservador)
+  const minInterval = Math.max(45, 90 - (state.difficultyLevel * 2));
+  // reducimos el intervalo de forma más gradual
+  state.obstacleInterval = Math.max(minInterval, state.obstacleInterval - 1);
+}
+
+// Spawn obstacles with a minimum cooldown to avoid bursts
+const now = Date.now();
+const minCooldownMs = 300; // mínimo 300 ms entre spawns
+let effectiveInterval = state.obstacleInterval;
+
+// Si la pantalla es vertical, aumentar aún más el intervalo
+if (window.innerHeight > window.innerWidth) {
+  effectiveInterval += 20;
+}
+
+// Convertimos frames a ms aproximados para la comprobación de cooldown
+// (asumiendo ~60fps, 1 frame ≈ 16.67 ms)
+const effectiveIntervalMs = effectiveInterval * (1000 / 60);
+
+if (state.obstacleTimer >= state.obstacleInterval && (now - state.lastObstacleSpawnTime) > Math.max(minCooldownMs, effectiveIntervalMs * 0.5)) {
+  createObstacle();
+  state.obstacleTimer = 0;
+  state.lastObstacleSpawnTime = now;
+
+  // Variación controlada: pequeña aleatoriedad pero sin bajar demasiado el intervalo
+  const variation = Math.floor(Math.random() * 8) - 4; // -4..+3
+  state.obstacleInterval = Math.max(45, state.obstacleInterval + variation);
+
+  // Si la pantalla es vertical, penalizamos un poco más el spawn
+  if (window.innerHeight > window.innerWidth) {
+    state.obstacleInterval += 10;
+  }
+}
+
+
+    // Obstacles movement and logic
     let obstacleSpeed = state.activePowerups.slowmo ? state.speed * 0.4 : state.speed;
     obstacleSpeed *= speedMod;
-    
+    obstacleSpeed *= timeScale;
+
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const obs = obstacles[i];
       obs.position.x -= obstacleSpeed;
@@ -807,7 +844,7 @@ function animate() {
         obs.scale.set(t, t, t);
       }
 
-      // Animate dog obstacles
+      // Animaciones específicas por tipo (mantener las existentes)
       if (obs.userData.type === 'dog') {
         const t = Date.now() * 0.01 + i;
         if (obs.userData.sprite) {
@@ -822,9 +859,8 @@ function animate() {
         obs.userData.tail.rotation.y = Math.sin(t * 0.7) * 0.5;
       }
 
-      // Animate wire spark toggle
       if (obs.userData.type === 'wire') {
-        obs.userData.sparkTimer++;
+        obs.userData.sparkTimer = (obs.userData.sparkTimer || 0) + 1;
         if (obs.userData.sparkTimer > 30) {
           obs.userData.sparkTimer = 0;
           obs.userData.sparkOn = !obs.userData.sparkOn;
@@ -833,43 +869,37 @@ function animate() {
         }
       }
 
-      // Animate drone float
       if (obs.userData.type === 'drone') {
         if (obs.userData.floatBase === undefined) obs.userData.floatBase = obs.position.y;
-        const t = Date.now() * 0.005 + obs.userData.floatOffset;
+        const t = Date.now() * 0.005 + (obs.userData.floatOffset || 0);
         obs.position.y = obs.userData.floatBase + Math.sin(t) * 0.08;
       }
 
-      // Animate watermelon rolling
       if (obs.userData.type === 'watermelon') {
-        obs.rotation.z += obs.userData.rollSpeed;
+        obs.rotation.z += obs.userData.rollSpeed || 0;
       }
 
-      // Animate water balloon falling
       if (obs.userData.type === 'waterballoon') {
         if (obs.position.y > 0.3 * gameScale.factor) {
-          obs.position.y -= obs.userData.fallSpeed;
+          obs.position.y -= obs.userData.fallSpeed || 0.01;
         } else {
           obs.position.y = 0.3 * gameScale.factor;
         }
       }
 
-      // Animate drill bob
       if (obs.userData.type === 'drill' && obs.userData.sprite) {
-        const t = Date.now() * 0.003 + obs.userData.bobOffset;
+        const t = Date.now() * 0.003 + (obs.userData.bobOffset || 0);
         obs.userData.sprite.position.y = 0.5 + Math.sin(t) * 0.08;
       }
 
-      // Animate marcosguerra rotation
       if (obs.userData.type === 'marcosguerra') {
         obs.rotation.y += 0.025;
       }
 
-      // Animate toaster shooting toast
       if (obs.userData.type === 'toaster' && !obs.userData.triggered) {
         const dx = player.position.x - obs.position.x;
         if (dx < 3 && dx > 0) {
-          obs.userData.shootTimer++;
+          obs.userData.shootTimer = (obs.userData.shootTimer || 0) + 1;
           if (obs.userData.shootTimer > 45) {
             obs.userData.shootTimer = 0;
             spawnParticles(obs.position.clone().add(new THREE.Vector3(0, 0.4, 0)), 0xffaa33, 5);
@@ -931,40 +961,40 @@ function animate() {
       // Score when obstacle passes player
       if (!obs.passed && obs.position.x < player.position.x) {
         obs.passed = true;
-        
+
         // Base points from obstacle difficulty
         let points = obs.userData.points || 1;
-        
+
         // Apply multiplier powerup
         points *= state.scoreMultiplier;
-        
+
         // Double tap bonus
         if (state.doubleTapBonus) {
           points *= 2;
           state.doubleTapBonus = false;
         }
-        
+
         // Combo system
         state.combo++;
         state.comboTimer = 60;
         const comboBonus = Math.min(Math.floor(state.combo / 3), 5); // Max 5x combo bonus
         points += comboBonus;
-        
+
         state.score += points;
         scored = true;
-        
+
         // Different sound for different difficulties
         if (obs.userData.difficulty === 'hard') {
           playSound('score');
         } else if (obs.userData.difficulty === 'medium') {
           playSound('score');
         }
-        
+
         // Visual feedback based on difficulty
-        const feedbackColor = obs.userData.difficulty === 'hard' ? 0xff00ff : 
+        const feedbackColor = obs.userData.difficulty === 'hard' ? 0xff00ff :
                               obs.userData.difficulty === 'medium' ? 0xffaa00 : 0x00ffcc;
         spawnScoreParticles(obs.position.clone(), feedbackColor, 6 + (obs.userData.points * 3));
-        
+
         if (player.userData.sprite) {
           const scale = (1.2 + (obs.userData.points * 0.1)) * gameScale.factor;
           player.userData.sprite.scale.set(scale, scale, scale);
@@ -976,15 +1006,15 @@ function animate() {
         scene.remove(obs);
         obstacles.splice(i, 1);
       }
-    }
+    } // end for obstacles
 
     // Combo milestone particles
     if (scored && state.combo > 0 && state.combo % 5 === 0) {
-      spawnParticles(player.position.clone(), 0xff00ff, 20);
-      spawnScoreParticles(player.position.clone(), 0xff00ff, 15);
+      spawnParticles(player.position.clone(), 0xffdd66, 30);
+      spawnFloatingText(`COMBO x${state.combo}`, player.position.clone(), 0xffaa00);
     }
 
-    // Update combo timer
+    // Combo timer decrement
     if (state.comboTimer > 0) {
       state.comboTimer--;
       if (state.comboTimer === 0) {
@@ -992,79 +1022,24 @@ function animate() {
       }
     }
 
-    // Combo counter HUD
-    var comboDisplay = document.getElementById('combo-display');
-    if (state.combo >= 3) {
-      if (!comboDisplay) {
-        comboDisplay = document.createElement('div');
-        comboDisplay.id = 'combo-display';
-        document.getElementById('hud').appendChild(comboDisplay);
-      }
-      comboDisplay.textContent = 'x' + state.combo + ' COMBO';
-      comboDisplay.style.color = state.combo > 5 ? '#ff00ff' : '#ffaa00';
-    } else {
-      if (comboDisplay) comboDisplay.remove();
-    }
+    // Update powerups (si tu función usa timeScale, pásalo; aquí la llamo sin params)
+    updatePowerups();
 
-    if (scored) {
-      updateScoreDisplay();
-    }
-
-    // Player sprite pulse recovery
-    if (player.userData.sprite) {
-      const targetScale = 1.8 * gameScale.factor;
-      player.userData.sprite.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
-    }
-
-    // Ground line pulse on score/combo
-    if (scored || state.combo > 2) {
-      groundLine.material.color.setHex(state.combo > 5 ? 0xff00ff : 0x00ffcc);
-      groundLine.scale.y = 2 + (state.combo > 5 ? 3 : 1);
-    } else {
-      groundLine.material.color.setHex(0x00ffcc);
-    }
-    groundLine.scale.y += (1 - groundLine.scale.y) * 0.1;
-    groundLine.material.opacity = 0.5 + Math.sin(Date.now() * 0.006) * 0.3 + (state.combo > 2 ? 0.3 : 0);
-
-    // Update particles
+    // Update particles and floating texts
     updateParticles();
-    
-    // Update background music
-    updateBgm(state.soundEnabled, state.screen);
+    updateFloatingTexts();
 
     // Camera shake
     updateCameraShake();
 
-    // Parallax city scroll
-    if (city) city.position.x -= state.speed * 0.08;
-  }
+    // Update background music (si aplica)
+    if (typeof updateBgm === 'function') updateBgm();
 
-  // Update floating texts (always, even after game over)
-  updateFloatingTexts();
+  } // end if state.screen === 'playing'
 
-  // Animate stars
-  if (stars) stars.rotation.y += state.speed * 0.0008;
-
-  // Animate clouds — horizontal drift (tied to game speed)
-  var speedRatio = state.speed / state.baseSpeed;
-  for (var ci = 0; ci < clouds.length; ci++) {
-    var c = clouds[ci];
-    c.position.x += c.userData.speed * speedRatio;
-    if (c.position.x > 10) {
-      c.position.x = c.userData.baseX - 15;
-    }
-    c.position.y += Math.sin(Date.now() * 0.001 + c.userData.offset) * 0.0005;
-  }
-
-  // Animate ambient lights — circular orbit
-  for (var li = 0; li < ambientLights.length; li++) {
-    var l = ambientLights[li];
-    l.userData.angle += l.userData.speed;
-    l.position.x = Math.cos(l.userData.angle) * l.userData.radius + (li - 1) * 2;
-    l.position.z = Math.sin(l.userData.angle) * l.userData.radius - 5;
-  }
-
+  // Render siempre fuera del if para que la escena se dibuje en pantallas de menú también
   renderer.render(scene, camera);
-}
+} // end function animate
+
 
 animate();
