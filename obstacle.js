@@ -555,7 +555,7 @@ function createObstacle() {
       }
     }
   }
-  obstacle.position.set(getObstacleSpawnX(), yPos, 0);
+  obstacle.position.set(getObstacleSpawnX(), yPos + state.groundY + 0.18, 0);
   scene.add(obstacle);
   obstacles.push(obstacle);
 }

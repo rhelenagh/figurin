@@ -12,7 +12,8 @@ const state = {
   gravity: -0.012,
   jumpForce: 0.25,
   doubleJumpForce: 0.22,
-  groundY: 0,
+  groundY: -0.8,
+  verticalOffset: -0.4,
   soundEnabled: true,
   obstacleTimer: 0,
   obstacleInterval: 100,
@@ -37,7 +38,6 @@ const state = {
 };
 
 const { playSound, startBgm, stopBgm, updateBgm, resumeAudioContext } = window.audioExport;
-
 
 const obstacles = [];
 
@@ -101,7 +101,7 @@ function createPowerup() {
   const innerMesh = new THREE.Mesh(innerGeom, innerMat);
   group.add(innerMesh);
   
-  group.position.set(12, 0.6 + Math.random() * 0.8, 0);
+  group.position.set(12, 0.6 + Math.random() * 0.8 + state.verticalOffset, 0);
   group.userData.rotationSpeed = 0.05 + Math.random() * 0.03;
   scene.add(group);
   state.powerups.push(group);
@@ -388,7 +388,7 @@ function spawnFloatingText(text, position, color = 0xff00ff) {
   const sprite = new THREE.Sprite(spriteMat);
   sprite.scale.set(2, 0.5, 1);
   sprite.position.copy(position);
-  sprite.position.y += 0.8;
+  sprite.position.y += 0.8 + state.verticalOffset;
   
   sprite.userData.velocity = new THREE.Vector3(0, 0.04, 0);
   sprite.userData.life = 1;
@@ -463,7 +463,7 @@ function jump() {
     playSound('jump');
     spawnParticles(player.position.clone().add(new THREE.Vector3(0, 0.3, 0)), 0xff00ff, 12, 1.5);
     spawnScoreParticles(player.position.clone().add(new THREE.Vector3(0, 0.3, 0)), 0xff00ff, 10);
-    triggerShake(4);
+    triggerShake(0);
     
     // Visual spin effect
     if (player.userData.sprite) {
@@ -477,6 +477,8 @@ function jump() {
 }
 
 function resetGame() {
+  clock.getDelta(); // consume accumulated time to prevent large timeScale next frame
+
   state.score = 0;
   state.speed = state.baseSpeed;
   state.isJumping = false;
@@ -510,7 +512,7 @@ function resetGame() {
   });
   particles.length = 0;
 
-  camera.position.set(0, 3, 8);
+  camera.position.set(0, 2.2 + state.verticalOffset, 8);
   shakeIntensity = 0;
   
   // Remove powerup indicators
@@ -531,6 +533,7 @@ function resetGame() {
 }
 
 function startGame() {
+  if (state.screen === 'playing') return;
   resetGame();
   state.screen = 'playing';
   showScreen('hud');
@@ -634,7 +637,6 @@ canvas.addEventListener('mousedown', (e) => {
 document.getElementById('start-btn').addEventListener('click', startGame);
 
 document.getElementById('restart-btn').addEventListener('click', () => {
-  showScreen('hud');
   startGame();
 });
 
@@ -655,19 +657,23 @@ document.getElementById('sound-toggle').addEventListener('click', () => {
 function updateScale() {
   gameScale.factor = getScaleFactor();
   player.position.x = getPlayerBaseX();
+
+  // player sprite
   if (playerSprite) {
     var s = 1.8 * gameScale.factor;
     playerSprite.scale.set(s, s, s);
-    playerSprite.position.y = 0.9 * gameScale.factor;
+    playerSprite.position.y = (0.9 * gameScale.factor) + state.verticalOffset;
   }
   if (auraSprite) {
     auraSprite.scale.setScalar(2 * gameScale.factor);
-    auraSprite.position.y = 0.9 * gameScale.factor;
+    auraSprite.position.y = (0.9 * gameScale.factor) + state.verticalOffset;
   }
+
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
 
 window.addEventListener('resize', updateScale);
 window.addEventListener('orientationchange', () => setTimeout(updateScale, 100));
@@ -738,8 +744,9 @@ function animate() {
 
     // Player sprite gentle bob
     if (player.userData.sprite && !state.isJumping) {
-      player.userData.sprite.position.y = (0.9 * gameScale.factor) + Math.sin(Date.now() * 0.008) * 0.02;
-    }
+      player.userData.sprite.position.y = (0.9 * gameScale.factor) + Math.sin(Date.now() * 0.008) * 0.02 + state.verticalOffset;
+   }
+
 
     // Jump aura glow
     if (player.userData.aura) {
@@ -829,6 +836,11 @@ if (state.obstacleTimer >= state.obstacleInterval && (now - state.lastObstacleSp
 
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const obs = obstacles[i];
+      if (obs.userData.spawnAdjusted !== true) {
+         obs.position.y += state.verticalOffset;
+      // guarda la marca para no desplazarlo cada frame
+         obs.userData.spawnAdjusted = true;
+      }
       obs.position.x -= obstacleSpeed;
       obs.rotation.y += 0.03;
 
@@ -880,10 +892,10 @@ if (state.obstacleTimer >= state.obstacleInterval && (now - state.lastObstacleSp
       }
 
       if (obs.userData.type === 'waterballoon') {
-        if (obs.position.y > 0.3 * gameScale.factor) {
+        if (obs.position.y > state.groundY + 0.3 * gameScale.factor) {
           obs.position.y -= obs.userData.fallSpeed || 0.01;
         } else {
-          obs.position.y = 0.3 * gameScale.factor;
+          obs.position.y = state.groundY + 0.3 * gameScale.factor;
         }
       }
 

@@ -74,7 +74,13 @@ var scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x0a0a0f, 10, 25);
 
 var camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 3, 8);
+
+// Camera base position (usar verticalOffset si está disponible)
+if (typeof state !== 'undefined' && typeof state.verticalOffset === 'number') {
+  camera.position.set(0, 2.2 + state.verticalOffset, 8);
+} else {
+  camera.position.set(0, 3, 8);
+}
 camera.lookAt(0, 1, 0);
 
 // Lighting
@@ -87,7 +93,7 @@ scene.add(playerLight);
 
 // Player (embedded image character)
 var player = new THREE.Group();
-player.position.set(getPlayerBaseX(), 0, 0);
+player.position.set(getPlayerBaseX(), -0.8, 0);
 
 function createPlayerTexture() {
   const canvas = document.createElement('canvas');
@@ -159,7 +165,8 @@ var playerSpriteMat = new THREE.SpriteMaterial({
 });
 var playerSprite = new THREE.Sprite(playerSpriteMat);
 playerSprite.scale.set(1.8 * gameScale.factor, 1.8 * gameScale.factor, 1.8 * gameScale.factor);
-playerSprite.position.y = 0.9 * gameScale.factor;
+// aplicar verticalOffset si existe
+playerSprite.position.y = (0.9 * gameScale.factor) + ((typeof state !== 'undefined' && typeof state.verticalOffset === 'number') ? state.verticalOffset : 0);
 player.add(playerSprite);
 
 // 3D arms for jump animation
@@ -204,8 +211,9 @@ var auraSprite = new THREE.Sprite(new THREE.SpriteMaterial({
   depthWrite: false,
   opacity: 0,
 }));
+// aplicar verticalOffset si existe
 auraSprite.scale.setScalar(2 * gameScale.factor);
-auraSprite.position.y = 0.9 * gameScale.factor;
+auraSprite.position.y = (0.9 * gameScale.factor) + ((typeof state !== 'undefined' && typeof state.verticalOffset === 'number') ? state.verticalOffset : 0);
 player.add(auraSprite);
 
 // Shield shell (wireframe, hidden by default)
@@ -236,17 +244,18 @@ var groundMaterial = new THREE.MeshStandardMaterial({
 });
 var ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.rotation.x = -Math.PI / 2;
-ground.position.set(0, 0, -0.5);
-scene.add(ground);
 
 // Ground line (neon strip)
 var lineGeometry = new THREE.BoxGeometry(30, 0.02, 0.02);
 var lineMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.8 });
 var groundLine = new THREE.Mesh(lineGeometry, lineMaterial);
-groundLine.position.set(0, 0.01, 0);
+
+// Posición inicial de ground/groundLine (luego game.js la ajusta a state.groundY)
+ground.position.set(0, -0.8 - 0.02, -0.5);
+groundLine.position.set(0, -0.8 + 0.01, 0);
+
+scene.add(ground);
 scene.add(groundLine);
-
-
 
 // Stars
 var starsGeometry = new THREE.BufferGeometry();
@@ -260,8 +269,6 @@ starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPosi
 var starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.5 });
 var stars = new THREE.Points(starsGeometry, starsMaterial);
 scene.add(stars);
-
-
 
 // City skyline
 var city = new THREE.Group();
